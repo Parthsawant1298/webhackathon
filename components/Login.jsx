@@ -1,206 +1,304 @@
+// components/Login.jsx - Complete Login Component
 "use client";
 
+import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Footer from './Footer';
+import Header from './Header';
 
-const Input = ({ label, type, placeholder, value, onChange, error }) => (
-    <div className="w-full">
-        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-        <input
-            type={type}
-            className={`w-full px-3 sm:px-4 py-2 rounded border ${
-                error ? 'border-red-500' : 'border-gray-300'
-            } focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm sm:text-base`}
-            placeholder={placeholder}
-            value={value}
-            onChange={onChange}
-        />
-        {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-    </div>
-);
+export default function Login() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Get redirect parameters
+  const redirectTo = searchParams.get('redirectTo') || '/';
+  const message = searchParams.get('message');
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-const Button = ({ children, variant = "primary", onClick, type = "button", disabled = false }) => {
-    const baseStyles = "w-full px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium rounded transition-colors duration-200 flex items-center justify-center";
-    const variants = {
-        primary: "bg-gradient-to-r from-green-600 via-green-500 to-green-700 text-white hover:opacity-90 disabled:opacity-70"
-    };
-    
-    return (
-        <button 
-            type={type}
-            onClick={onClick}
-            disabled={disabled}
-            className={`${baseStyles} ${variants[variant]}`}
-        >
-            {children}
-        </button>
-    );
-};
+  // Show message if provided
+  useEffect(() => {
+    if (message) {
+      // Clear any existing error and show the redirect message
+      setError('');
+    }
+  }, [message]);
 
-export default function LoginPage() {
-    const router = useRouter();
-    const [formData, setFormData] = useState({
-        email: '',
-        password: ''
-    });
-    const [errors, setErrors] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
-
-    const validateForm = () => {
-        const newErrors = {};
-        
-        if (!formData.email.trim()) {
-            newErrors.email = 'Email is required';
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/user', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            // User is already logged in, redirect them
+            router.push(redirectTo);
+          }
         }
-        
-        if (!formData.password) {
-            newErrors.password = 'Password is required';
-        }
-        
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+      } catch (error) {
+        // User not logged in, continue with login form
+        console.log('User not authenticated, showing login form');
+      }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    checkExistingAuth();
+  }, [router, redirectTo]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      if (data.success) {
+        // Show success message briefly
+        console.log('Login successful:', data.message);
         
-        if (!validateForm()) return;
-        
-        setIsLoading(true);
-        setErrors({}); // Clear previous errors
-        
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: formData.email.trim(),
-                    password: formData.password,
-                }),
-            });
+        // Small delay to show success state, then redirect
+        setTimeout(() => {
+          router.push(redirectTo);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Login failed');
-            }
-
-            // Store user data in localStorage for immediate access
-            if (data.user) {
-                localStorage.setItem('user', JSON.stringify(data.user));
-            }
-
-            // Redirect to home page
-            router.push('/');
-            
-        } catch (error) {
-            console.error('Login error:', error);
-            setErrors(prev => ({
-                ...prev,
-                submit: error.message || 'Login failed. Please check your connection and try again.'
-            }));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="flex flex-col min-h-screen">
-            <section className="flex-grow relative py-12 md:py-20 bg-gradient-to-br from-green-50 via-gray-50 to-white">
-                <div className="absolute inset-0 z-0 overflow-hidden opacity-20">
-                    <svg className="absolute left-0 top-0 h-full" viewBox="0 0 150 800" fill="none">
-                        <path d="M-5 0H50L-5 200V0Z" fill="#16A34A" />
-                        <path d="M-5 200H50L-5 400V200Z" fill="#22C55E" />
-                        <path d="M-5 400H50L-5 600V400Z" fill="#4ADE80" />
-                        <path d="M-5 600H50L-5 800V600Z" fill="#86EFAC" />
-                    </svg>
-                    <svg className="absolute right-0 bottom-0 h-full" viewBox="0 0 150 800" fill="none">
-                        <path d="M155 800H100L155 600V800Z" fill="#16A34A" />
-                        <path d="M155 600H100L155 400V600Z" fill="#22C55E" />
-                        <path d="M155 400H100L155 200V400Z" fill="#4ADE80" />
-                        <path d="M155 200H100L155 0V200Z" fill="#86EFAC" />
-                    </svg>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-gray-50 to-white flex flex-col">
+      <Header />
+      
+      <div className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-teal-600 rounded-full flex items-center justify-center">
+                  <User size={32} className="text-white" />
                 </div>
-                
-                <div className="container mx-auto px-4 sm:px-6 relative z-10">
-                    <div className="max-w-md mx-auto">
-                        <div className="bg-white p-8 rounded-xl shadow-xl border border-gray-200">
-                            <div className="text-center mb-8">
-                                <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back Vendor</h2>
-                                <p className="text-gray-600">Sign in to access your SupplyMind account and manage your raw materials</p>
-                            </div>
-                            
-                            <div className="space-y-5">
-                                <Input
-                                    label="Email Address"
-                                    type="email"
-                                    placeholder="your.email@example.com"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                                    error={errors.email}
-                                />
-                                
-                                <Input
-                                    label="Password"
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                                    error={errors.password}
-                                />
-                                
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <input 
-                                            id="remember-me" 
-                                            name="remember-me" 
-                                            type="checkbox"
-                                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                                        />
-                                        <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                                            Remember me
-                                        </label>
-                                    </div>
-                                    <div className="text-sm">
-                                        <a href="#" className="font-medium text-green-600 hover:text-green-500">
-                                            Forgot password?
-                                        </a>
-                                    </div>
-                                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+              <p className="text-gray-600">Sign in to your account to continue</p>
+            </div>
 
-                                <Button onClick={handleSubmit} disabled={isLoading}>
-                                    {isLoading ? 'Signing in...' : 'Sign In'}
-                                </Button>
-
-                                {errors.submit && (
-                                    <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">
-                                        {errors.submit}
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <p className="mt-8 text-center text-gray-600 text-sm">
-                                Don't have an account?{' '}
-                                <Link href="/register" className="font-semibold text-green-600 hover:text-green-500">
-                                    Create vendor account
-                                </Link>
-                            </p>
-                        </div>
-                        
-                        <div className="mt-8 text-center">
-                            <p className="text-sm text-gray-600">
-                                By signing in, you agree to our{' '}
-                                <a href="/terms-of-use" className="text-green-600 hover:underline">Terms of Service</a>{' '}
-                                and{' '}
-                                <a href="/privacy-policy" className="text-green-600 hover:underline">Privacy Policy</a>
-                            </p>
-                        </div>
-                    </div>
+            {/* Show redirect message if present */}
+            {message && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-md flex items-start">
+                <div className="flex-shrink-0 mr-2">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                  </div>
                 </div>
-            </section>
+                <div>{message}</div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && !message && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md">
+                {error}
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Email Field */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail size={18} className="text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={18} className="text-gray-400" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-colors"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} className="text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye size={18} className="text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Forgot Password Link */}
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  <Link
+                    href="/forgot-password"
+                    className="text-teal-600 hover:text-teal-700 transition-colors"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
+                  isLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 active:scale-[0.98] shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {isLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Register Link */}
+            <div className="mt-6">
+              <Link
+                href="/register"
+                className="w-full flex justify-center py-3 px-4 border border-teal-600 rounded-lg text-teal-600 font-medium hover:bg-teal-50 transition-colors"
+              >
+                Create new account
+              </Link>
+            </div>
+
+            {/* Supplier Login Link */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Are you a supplier?{' '}
+                <Link
+                  href="/supplier/login"
+                  className="text-teal-600 hover:text-teal-700 font-medium transition-colors"
+                >
+                  Login as Supplier
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          {/* Additional Info */}
+          <div className="text-center">
+            <p className="text-sm text-gray-500">
+              By signing in, you agree to our{' '}
+              <Link href="/terms" className="text-teal-600 hover:text-teal-700 transition-colors">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="text-teal-600 hover:text-teal-700 transition-colors">
+                Privacy Policy
+              </Link>
+            </p>
+          </div>
         </div>
-    );
+      </div>
+
+      <Footer />
+    </div>
+  );
 }

@@ -126,92 +126,94 @@ export default function RawMaterialsPage() {
   }, [selectedCategory, selectedSubcategory, selectedSupplier, searchQuery, priceRange, ratings, discount, showFavoritesOnly, selectedFeatures]);
 
   // Check if user is logged in
-  const checkAuth = async () => {
-    try {
-      const response = await fetch("/api/auth/user", {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        return false;
-      }
-      const userData = await response.json();
-      return !!userData.user;
-    } catch (error) {
+  // Replace the existing checkAuth function with this:
+const checkAuth = async () => {
+  try {
+    const response = await fetch("/api/auth/user", {
+      credentials: "include",
+    });
+    if (!response.ok) {
       return false;
     }
+    const userData = await response.json();
+    return userData.success && !!userData.user;
+  } catch (error) {
+    return false;
   }
+}
 
-  const handleAddToCart = async (materialId) => {
-    try {
-      // Check if user is logged in
-      const isLoggedIn = await checkAuth();
-      if (!isLoggedIn) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('/api/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          rawMaterialId: materialId,
-          quantity: 1
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to add item to cart');
-      }
-
-      // Show toast notification instead of alert
-      showToast('Raw material added to cart!', 'success');
-    } catch (error) {
-      console.error('Add to cart error:', error);
-      showToast(error.message || 'Failed to add to cart', 'error');
+// Update handleAddToCart function:
+const handleAddToCart = async (materialId) => {
+  try {
+    // Check if user is logged in
+    const isLoggedIn = await checkAuth();
+    if (!isLoggedIn) {
+      router.push('/login?redirectTo=/rawmaterials&message=Please login to add items to cart');
+      return;
     }
-  };
 
-  // Handle Buy Now - add to cart and redirect to checkout
-  const handleBuyNow = async (materialId) => {
-    try {
-      // Check if user is logged in
-      const isLoggedIn = await checkAuth();
-      if (!isLoggedIn) {
-        router.push('/login');
-        return;
-      }
+    const response = await fetch('/api/cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        rawMaterialId: materialId,
+        quantity: 1
+      }),
+    });
 
-      const response = await fetch('/api/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          rawMaterialId: materialId,
-          quantity: 1
-        }),
-      });
+    const data = await response.json();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to add item to cart');
-      }
-
-      // Redirect to checkout
-      router.push('/checkout');
-    } catch (error) {
-      console.error('Buy now error:', error);
-      showToast(error.message || 'Failed to process. Please try again.', 'error');
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add item to cart');
     }
-  };
 
+    // Show toast notification instead of alert
+    showToast('Raw material added to cart!', 'success');
+  } catch (error) {
+    console.error('Add to cart error:', error);
+    showToast(error.message || 'Failed to add to cart', 'error');
+  }
+};
+
+// Update handleBuyNow function:
+const handleBuyNow = async (materialId) => {
+  try {
+    // Check if user is logged in
+    const isLoggedIn = await checkAuth();
+    if (!isLoggedIn) {
+      router.push('/login?redirectTo=/rawmaterials&message=Please login to make a purchase');
+      return;
+    }
+
+    const response = await fetch('/api/cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        rawMaterialId: materialId,
+        quantity: 1
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add item to cart');
+    }
+
+    // Redirect to checkout
+    router.push('/checkout');
+  } catch (error) {
+    console.error('Buy now error:', error);
+    showToast(error.message || 'Failed to process. Please try again.', 'error');
+  }
+};
+  
   const handleShare = (material) => {
     if (navigator.share) {
       navigator.share({

@@ -1,4 +1,4 @@
-// app/api/cart/item/route.js
+// app/api/cart/item/route.js - FINAL CORRECTED VERSION
 import connectDB from '@/lib/mongodb';
 import Cart from '@/models/cart';
 import RawMaterial from '@/models/rawMaterial';
@@ -49,7 +49,7 @@ export async function PUT(request) {
       );
     }
     
-    // Find user's cart
+    // Find user's cart - FIXED: Use correct field name 'user'
     const cart = await Cart.findOne({ user: userId });
     if (!cart) {
       return NextResponse.json(
@@ -58,7 +58,7 @@ export async function PUT(request) {
       );
     }
     
-    // Find the item in the cart
+    // Find the item in the cart - FIXED: Use correct field name 'rawMaterial'
     const itemIndex = cart.items.findIndex(item => 
       item.rawMaterial.toString() === rawMaterialId
     );
@@ -144,7 +144,7 @@ export async function DELETE(request) {
     
     await connectDB();
     
-    // Find user's cart
+    // Find user's cart - FIXED: Use correct field name 'user'
     const cart = await Cart.findOne({ user: userId });
     if (!cart) {
       return NextResponse.json(
@@ -153,7 +153,7 @@ export async function DELETE(request) {
       );
     }
     
-    // Remove the item from the cart
+    // Remove the item from the cart - FIXED: Use correct field name 'rawMaterial'
     cart.items = cart.items.filter(item => 
       item.rawMaterial.toString() !== rawMaterialId
     );

@@ -1,3 +1,4 @@
+// components/Header.jsx - FIXED AUTHENTICATION
 "use client"
 
 import { AnimatePresence, motion } from 'framer-motion'
@@ -20,70 +21,60 @@ export default function Header() {
  useEffect(() => {
    const checkAuth = async () => {
      try {
-       const response = await fetch('/api/auth/user')
+       const response = await fetch('/api/auth/user', {
+         credentials: 'include'
+       })
        if (response.ok) {
          const data = await response.json()
-         setUser(data.user)
+         if (data.success && data.user) {
+           setUser(data.user)
+           await fetchCartCount() // Only fetch cart if authenticated
+         }
        }
      } catch (error) {
        console.error('Auth check failed:', error)
+       setUser(null)
+       setCartItemCount(0)
      } finally {
        setIsLoading(false)
      }
    }
    
-   // Always fetch cart count regardless of authentication status
-   const fetchCartCount = async () => {
-     try {
-       const response = await fetch('/api/cart')
-       if (response.ok) {
-         const data = await response.json()
-         
-         // Calculate total number of items (considering quantities)
-         let totalItems = 0
-         if (data.cart && data.cart.items) {
-           data.cart.items.forEach(item => {
-             totalItems += item.quantity
-           })
-         }
-         
-         setCartItemCount(totalItems)
-       }
-     } catch (error) {
-       console.error('Fetch cart count failed:', error)
-       // If cart fetch fails, set count to 0
-       setCartItemCount(0)
-     }
-   }
-   
-   const initializeData = async () => {
-     await checkAuth()
-     await fetchCartCount()
-   }
-   
-   initializeData()
+   checkAuth()
  }, [])
  
- // Function to refresh cart item count (can be called from outside)
- const refreshCartCount = async () => {
+ // Function to fetch cart count - only when authenticated
+ const fetchCartCount = async () => {
    try {
-     const response = await fetch('/api/cart')
+     const response = await fetch('/api/cart', {
+       credentials: 'include'
+     })
      if (response.ok) {
        const data = await response.json()
        
-       // Calculate total number of items (considering quantities)
-       let totalItems = 0
-       if (data.cart && data.cart.items) {
+       if (data.success && data.cart && data.cart.items) {
+         // Calculate total number of items (considering quantities)
+         let totalItems = 0
          data.cart.items.forEach(item => {
            totalItems += item.quantity
          })
+         setCartItemCount(totalItems)
+       } else {
+         setCartItemCount(0)
        }
-       
-       setCartItemCount(totalItems)
+     } else {
+       setCartItemCount(0)
      }
    } catch (error) {
      console.error('Fetch cart count failed:', error)
      setCartItemCount(0)
+   }
+ }
+ 
+ // Function to refresh cart item count (can be called from outside)
+ const refreshCartCount = async () => {
+   if (user) {
+     await fetchCartCount()
    }
  }
  
@@ -104,10 +95,10 @@ export default function Header() {
    try {
      await fetch('/api/auth/logout', {
        method: 'POST',
+       credentials: 'include'
      })
      setUser(null)
      setIsProfileMenuOpen(false)
-     // Clear cart count on logout since cart is user-specific
      setCartItemCount(0)
      router.push('/')
    } catch (error) {
@@ -117,11 +108,11 @@ export default function Header() {
  
  // Handle cart click - redirect to login if not authenticated
  const handleCartClick = (e) => {
- if (!user) {
-   e.preventDefault()
-   window.location.href = '/login?redirectTo=/cart&message=Please login to view your cart'
+   if (!user) {
+     e.preventDefault()
+     router.push('/login?redirectTo=/cart&message=Please login to view your cart')
+   }
  }
-}
  
  return (
    <motion.header
@@ -167,10 +158,13 @@ export default function Header() {
        
        {/* Right side profile and cart */}
        <div className="hidden md:flex items-center space-x-4">
-         {/* Cart icon - always visible, but behavior depends on authentication */}
-         <Link href="/cart" onClick={handleCartClick} className="text-gray-700 hover:text-green-700 relative transition-colors">
+         {/* Cart icon - behavior depends on authentication */}
+         <Link 
+           href={user ? "/cart" : "/login?redirectTo=/cart&message=Please login to view your cart"} 
+           className="text-gray-700 hover:text-green-700 relative transition-colors"
+         >
            <ShoppingCart size={24} />
-           {cartItemCount > 0 && (
+           {user && cartItemCount > 0 && (
              <span className="absolute -top-2 -right-2 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" style={{backgroundColor: '#347433'}}>
                {cartItemCount > 99 ? '99+' : cartItemCount}
              </span>
@@ -196,7 +190,7 @@ export default function Header() {
                    <User size={20} className="text-gray-500" />
                  )}
                </div>
-               <span className="font-medium">{user.name?.split(' ')[0]}</span>
+               <span className="font-medium">{user.name?.split(' ')[0] || user.vendorName?.split(' ')[0]}</span>
                <ChevronDown size={16} className={`transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
              </button>
              
@@ -209,11 +203,8 @@ export default function Header() {
                  transition={{ duration: 0.2 }}
                >
                  <div className="px-4 py-2 border-b border-gray-100">
-                   <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                   <p className="text-sm font-medium text-gray-900 truncate">{user.name || user.vendorName}</p>
                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                   {user.companyName && (
-                     <p className="text-xs text-gray-400 truncate">{user.companyName}</p>
-                   )}
                  </div>
                  
                  <Link href="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
@@ -284,18 +275,16 @@ export default function Header() {
                Contact Us
              </Link>
              
-             {/* Cart button - always visible in mobile */}
-             <Link href="/cart" 
-               onClick={(e) => {
-                 handleCartClick(e);
-                 closeMenu();
-               }}
+             {/* Cart button - behavior depends on authentication */}
+             <Link 
+               href={user ? "/cart" : "/login?redirectTo=/cart&message=Please login to view your cart"}
+               onClick={closeMenu}
                className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md flex items-center justify-center hover:bg-green-800"
                style={{backgroundColor: '#347433'}}
              >
                <ShoppingCart size={16} className="mr-2" />
                My Cart
-               {cartItemCount > 0 && (
+               {user && cartItemCount > 0 && (
                  <span className="ml-2 bg-white text-xs rounded-full w-5 h-5 flex items-center justify-center" style={{color: '#347433'}}>
                    {cartItemCount > 99 ? '99+' : cartItemCount}
                  </span>
@@ -319,11 +308,8 @@ export default function Header() {
                      )}
                    </div>
                    <div>
-                     <p className="font-medium text-gray-900">{user.name}</p>
+                     <p className="font-medium text-gray-900">{user.name || user.vendorName}</p>
                      <p className="text-xs text-gray-500">{user.email}</p>
-                     {user.companyName && (
-                       <p className="text-xs text-gray-400">{user.companyName}</p>
-                     )}
                    </div>
                  </div>
                  
@@ -334,15 +320,6 @@ export default function Header() {
                  >
                    <User size={16} className="mr-2" />
                    My Profile
-                 </Link>
-                 
-                 <Link href="/order-history" 
-                   className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md flex items-center justify-center hover:bg-green-800"
-                   style={{backgroundColor: '#347433'}}
-                   onClick={closeMenu}
-                 >
-                   <Package size={16} className="mr-2" />
-                   Order History
                  </Link>
                  
                  <button 

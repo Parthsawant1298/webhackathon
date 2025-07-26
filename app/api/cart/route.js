@@ -1,4 +1,4 @@
-// /api/cart/route.js - Only for Raw Materials
+// app/api/cart/route.js - FINAL CORRECTED VERSION
 import connectDB from '@/lib/mongodb';
 import Cart from '@/models/cart';
 import RawMaterial from '@/models/rawMaterial';
@@ -9,33 +9,13 @@ export async function POST(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies
+    // Get user session from cookies - FIXED: Use userId cookie
     const cookieStore = await cookies();
-    const userSessionCookie = cookieStore.get('user-session')?.value;
+    const userId = cookieStore.get('userId')?.value;
     
-    if (!userSessionCookie) {
-      return NextResponse.json(
-        { success: false, error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    // Parse user session
-    let userSession;
-    try {
-      userSession = JSON.parse(userSessionCookie);
-    } catch (parseError) {
-      console.error('Failed to parse user session:', parseError);
-      return NextResponse.json(
-        { success: false, error: 'Invalid session' },
-        { status: 401 }
-      );
-    }
-
-    const userId = userSession.id;
     if (!userId) {
       return NextResponse.json(
-        { success: false, error: 'Invalid session data' },
+        { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
@@ -75,19 +55,19 @@ export async function POST(request) {
       );
     }
 
-    // Find or create cart for user
-    let cart = await Cart.findOne({ userId });
+    // Find or create cart for user - FIXED: Use correct field name 'user'
+    let cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
       cart = new Cart({
-        userId,
+        user: userId, // FIXED: Use 'user' not 'userId'
         items: []
       });
     }
 
-    // Check if item already exists in cart
+    // Check if item already exists in cart - FIXED: Use correct field name 'rawMaterial'
     const existingItemIndex = cart.items.findIndex(cartItem => 
-      cartItem.rawMaterialId && cartItem.rawMaterialId.toString() === rawMaterialId
+      cartItem.rawMaterial && cartItem.rawMaterial.toString() === rawMaterialId
     );
 
     if (existingItemIndex > -1) {
@@ -104,30 +84,18 @@ export async function POST(request) {
       
       cart.items[existingItemIndex].quantity = newQuantity;
     } else {
-      // Add new item to cart
-      const cartItem = {
-        rawMaterialId: rawMaterialId,
-        quantity,
-        price: rawMaterial.price
-      };
-
-      cart.items.push(cartItem);
+      // Add new item to cart - FIXED: Use correct field name 'rawMaterial'
+      cart.items.push({
+        rawMaterial: rawMaterialId, // FIXED: Use 'rawMaterial' not 'rawMaterialId'
+        quantity
+      });
     }
-
-    // Update cart totals
-    cart.totalQuantity = cart.items.reduce((total, item) => total + item.quantity, 0);
-    cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
 
     await cart.save();
 
     return NextResponse.json({
       success: true,
-      message: 'Raw material added to cart successfully',
-      cart: {
-        totalQuantity: cart.totalQuantity,
-        totalAmount: cart.totalAmount,
-        itemCount: cart.items.length
-      }
+      message: 'Raw material added to cart successfully'
     });
 
   } catch (error) {
@@ -147,40 +115,20 @@ export async function GET(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies
+    // Get user session from cookies - FIXED: Use userId cookie
     const cookieStore = await cookies();
-    const userSessionCookie = cookieStore.get('user-session')?.value;
+    const userId = cookieStore.get('userId')?.value;
     
-    if (!userSessionCookie) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    // Parse user session
-    let userSession;
-    try {
-      userSession = JSON.parse(userSessionCookie);
-    } catch (parseError) {
-      console.error('Failed to parse user session:', parseError);
-      return NextResponse.json(
-        { success: false, error: 'Invalid session' },
-        { status: 401 }
-      );
-    }
-
-    const userId = userSession.id;
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid session data' },
-        { status: 401 }
-      );
-    }
-
-    // Find cart and populate items
-    const cart = await Cart.findOne({ userId })
-      .populate('items.rawMaterialId', 'name price mainImage quantity')
+    // Find cart and populate items - FIXED: Use correct field names
+    const cart = await Cart.findOne({ user: userId })
+      .populate('items.rawMaterial', 'name price mainImage quantity')
       .lean();
 
     if (!cart) {
@@ -189,25 +137,40 @@ export async function GET(request) {
         cart: {
           items: [],
           totalQuantity: 0,
-          totalAmount: 0
+          totalPrice: 0
         }
       });
     }
 
     // Filter out items where the referenced raw material no longer exists
-    const validItems = cart.items.filter(item => item.rawMaterialId !== null);
+    const validItems = cart.items.filter(item => item.rawMaterial !== null);
 
-    // Recalculate totals
-    const totalQuantity = validItems.reduce((total, item) => total + item.quantity, 0);
-    const totalAmount = validItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+    // Calculate totals
+    let totalPrice = 0;
+    validItems.forEach(item => {
+      if (item.rawMaterial && item.rawMaterial.price) {
+        totalPrice += item.rawMaterial.price * item.quantity;
+      }
+    });
+
+    // Add availability information to each item
+    const itemsWithAvailability = validItems.map(item => {
+      if (!item.rawMaterial) return item;
+      
+      return {
+        ...item,
+        availableQuantity: item.rawMaterial.quantity,
+        hasStockIssue: item.quantity > item.rawMaterial.quantity
+      };
+    });
 
     return NextResponse.json({
       success: true,
       cart: {
         _id: cart._id,
-        items: validItems,
-        totalQuantity,
-        totalAmount
+        items: itemsWithAvailability,
+        totalItems: validItems.length,
+        totalPrice
       }
     });
 
@@ -230,38 +193,26 @@ export async function PUT(request) {
     
     // Get user session from cookies
     const cookieStore = await cookies();
-    const userSessionCookie = cookieStore.get('user-session')?.value;
+    const userId = cookieStore.get('userId')?.value;
     
-    if (!userSessionCookie) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    // Parse user session
-    let userSession;
-    try {
-      userSession = JSON.parse(userSessionCookie);
-    } catch (parseError) {
-      console.error('Failed to parse user session:', parseError);
-      return NextResponse.json(
-        { success: false, error: 'Invalid session' },
-        { status: 401 }
-      );
-    }
+    const { rawMaterialId, quantity } = await request.json();
 
-    const userId = userSession.id;
-    const { itemId, quantity } = await request.json();
-
-    if (!itemId || !quantity || quantity < 1) {
+    if (!rawMaterialId || !quantity || quantity < 1) {
       return NextResponse.json(
-        { success: false, error: 'Valid item ID and quantity are required' },
+        { success: false, error: 'Valid raw material ID and quantity are required' },
         { status: 400 }
       );
     }
 
-    const cart = await Cart.findOne({ userId });
+    // Find cart - FIXED: Use correct field name
+    const cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
       return NextResponse.json(
@@ -270,7 +221,10 @@ export async function PUT(request) {
       );
     }
 
-    const itemIndex = cart.items.findIndex(item => item._id.toString() === itemId);
+    // Find the item in the cart - FIXED: Use correct field name
+    const itemIndex = cart.items.findIndex(item => 
+      item.rawMaterial.toString() === rawMaterialId
+    );
     
     if (itemIndex === -1) {
       return NextResponse.json(
@@ -280,15 +234,8 @@ export async function PUT(request) {
     }
 
     // Check availability
-    const cartItem = cart.items[itemIndex];
-    let availableQuantity = 0;
-
-    if (cartItem.rawMaterialId) {
-      const rawMaterial = await RawMaterial.findById(cartItem.rawMaterialId);
-      availableQuantity = rawMaterial ? rawMaterial.quantity : 0;
-    }
-
-    if (quantity > availableQuantity) {
+    const rawMaterial = await RawMaterial.findById(rawMaterialId);
+    if (!rawMaterial || quantity > rawMaterial.quantity) {
       return NextResponse.json(
         { success: false, error: 'Insufficient quantity available' },
         { status: 400 }
@@ -297,20 +244,11 @@ export async function PUT(request) {
 
     // Update quantity
     cart.items[itemIndex].quantity = quantity;
-
-    // Recalculate totals
-    cart.totalQuantity = cart.items.reduce((total, item) => total + item.quantity, 0);
-    cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-
     await cart.save();
 
     return NextResponse.json({
       success: true,
-      message: 'Cart item updated successfully',
-      cart: {
-        totalQuantity: cart.totalQuantity,
-        totalAmount: cart.totalAmount
-      }
+      message: 'Cart item updated successfully'
     });
 
   } catch (error) {
@@ -332,38 +270,26 @@ export async function DELETE(request) {
     
     // Get user session from cookies
     const cookieStore = await cookies();
-    const userSessionCookie = cookieStore.get('user-session')?.value;
+    const userId = cookieStore.get('userId')?.value;
     
-    if (!userSessionCookie) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    // Parse user session
-    let userSession;
-    try {
-      userSession = JSON.parse(userSessionCookie);
-    } catch (parseError) {
-      console.error('Failed to parse user session:', parseError);
-      return NextResponse.json(
-        { success: false, error: 'Invalid session' },
-        { status: 401 }
-      );
-    }
+    const { rawMaterialId } = await request.json();
 
-    const userId = userSession.id;
-    const { itemId } = await request.json();
-
-    if (!itemId) {
+    if (!rawMaterialId) {
       return NextResponse.json(
-        { success: false, error: 'Item ID is required' },
+        { success: false, error: 'Raw Material ID is required' },
         { status: 400 }
       );
     }
 
-    const cart = await Cart.findOne({ userId });
+    // Find cart - FIXED: Use correct field name
+    const cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
       return NextResponse.json(
@@ -372,22 +298,16 @@ export async function DELETE(request) {
       );
     }
 
-    // Remove item from cart
-    cart.items = cart.items.filter(item => item._id.toString() !== itemId);
-
-    // Recalculate totals
-    cart.totalQuantity = cart.items.reduce((total, item) => total + item.quantity, 0);
-    cart.totalAmount = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+    // Remove item from cart - FIXED: Use correct field name
+    cart.items = cart.items.filter(item => 
+      item.rawMaterial.toString() !== rawMaterialId
+    );
 
     await cart.save();
 
     return NextResponse.json({
       success: true,
-      message: 'Item removed from cart successfully',
-      cart: {
-        totalQuantity: cart.totalQuantity,
-        totalAmount: cart.totalAmount
-      }
+      message: 'Item removed from cart successfully'
     });
 
   } catch (error) {
