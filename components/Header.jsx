@@ -1,4 +1,4 @@
-// components/Header.jsx - FIXED AUTHENTICATION
+// components/Header.jsx - UPDATED with Order History
 "use client"
 
 import { AnimatePresence, motion } from 'framer-motion'
@@ -28,7 +28,7 @@ export default function Header() {
          const data = await response.json()
          if (data.success && data.user) {
            setUser(data.user)
-           await fetchCartCount() // Only fetch cart if authenticated
+           await fetchCartCount()
          }
        }
      } catch (error) {
@@ -43,7 +43,6 @@ export default function Header() {
    checkAuth()
  }, [])
  
- // Function to fetch cart count - only when authenticated
  const fetchCartCount = async () => {
    try {
      const response = await fetch('/api/cart', {
@@ -53,7 +52,6 @@ export default function Header() {
        const data = await response.json()
        
        if (data.success && data.cart && data.cart.items) {
-         // Calculate total number of items (considering quantities)
          let totalItems = 0
          data.cart.items.forEach(item => {
            totalItems += item.quantity
@@ -68,13 +66,6 @@ export default function Header() {
    } catch (error) {
      console.error('Fetch cart count failed:', error)
      setCartItemCount(0)
-   }
- }
- 
- // Function to refresh cart item count (can be called from outside)
- const refreshCartCount = async () => {
-   if (user) {
-     await fetchCartCount()
    }
  }
  
@@ -106,7 +97,6 @@ export default function Header() {
    }
  }
  
- // Handle cart click - redirect to login if not authenticated
  const handleCartClick = (e) => {
    if (!user) {
      e.preventDefault()
@@ -158,7 +148,7 @@ export default function Header() {
        
        {/* Right side profile and cart */}
        <div className="hidden md:flex items-center space-x-4">
-         {/* Cart icon - behavior depends on authentication */}
+         {/* Cart icon */}
          <Link 
            href={user ? "/cart" : "/login?redirectTo=/cart&message=Please login to view your cart"} 
            className="text-gray-700 hover:text-green-700 relative transition-colors"
@@ -212,11 +202,6 @@ export default function Header() {
                    <span>My Profile</span>
                  </Link>
                  
-                 <Link href="/user-reviews" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
-                   <Star size={16} className="mr-2" />
-                   <span>My Reviews</span>
-                 </Link>
-                 
                  <Link href="/order-history" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
                    <Package size={16} className="mr-2" />
                    <span>Order History</span>
@@ -233,7 +218,6 @@ export default function Header() {
              )}
            </div>
          ) : (
-           /* Show Login button when not authenticated */
            <Link href="/login" className="text-white px-4 py-2 rounded-md transition-colors font-medium shadow-md hover:bg-green-800" style={{backgroundColor: '#347433'}}>
              Login
            </Link>
@@ -275,7 +259,7 @@ export default function Header() {
                Contact Us
              </Link>
              
-             {/* Cart button - behavior depends on authentication */}
+             {/* Cart button */}
              <Link 
                href={user ? "/cart" : "/login?redirectTo=/cart&message=Please login to view your cart"}
                onClick={closeMenu}
@@ -322,6 +306,15 @@ export default function Header() {
                    My Profile
                  </Link>
                  
+                 <Link href="/order-history" 
+                   className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md flex items-center justify-center hover:bg-green-800"
+                   style={{backgroundColor: '#347433'}}
+                   onClick={closeMenu}
+                 >
+                   <Package size={16} className="mr-2" />
+                   Order History
+                 </Link>
+                 
                  <button 
                    onClick={() => {
                      closeMenu();
@@ -334,7 +327,6 @@ export default function Header() {
                  </button>
                </div>
              ) : (
-               /* Show Login button in mobile when not authenticated */
                <div className="w-full flex flex-col items-center space-y-3 border-t border-gray-100 pt-4">
                  <Link href="/login" 
                    className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md hover:bg-green-800"
