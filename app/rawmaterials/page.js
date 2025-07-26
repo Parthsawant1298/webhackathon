@@ -128,24 +128,26 @@ export default function RawMaterialsPage() {
   // Check if user is logged in
   const checkAuth = async () => {
     try {
-      const response = await fetch("/api/auth/user")
+      const response = await fetch("/api/auth/user", {
+        credentials: "include",
+      });
       if (!response.ok) {
-        return false
+        return false;
       }
-      const userData = await response.json()
-      return !!userData.user
+      const userData = await response.json();
+      return !!userData.user;
     } catch (error) {
-      return false
+      return false;
     }
   }
 
   const handleAddToCart = async (materialId) => {
     try {
       // Check if user is logged in
-      const isLoggedIn = await checkAuth()
+      const isLoggedIn = await checkAuth();
       if (!isLoggedIn) {
-        router.push('/Login')
-        return
+        router.push('/login');
+        return;
       }
 
       const response = await fetch('/api/cart', {
@@ -153,6 +155,7 @@ export default function RawMaterialsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           rawMaterialId: materialId,
           quantity: 1
@@ -177,10 +180,10 @@ export default function RawMaterialsPage() {
   const handleBuyNow = async (materialId) => {
     try {
       // Check if user is logged in
-      const isLoggedIn = await checkAuth()
+      const isLoggedIn = await checkAuth();
       if (!isLoggedIn) {
-        router.push('/Login')
-        return
+        router.push('/login');
+        return;
       }
 
       const response = await fetch('/api/cart', {
@@ -188,6 +191,7 @@ export default function RawMaterialsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           rawMaterialId: materialId,
           quantity: 1
