@@ -1,0 +1,42 @@
+// app/api/order/history/route.js
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import connectDB from '@/lib/mongodb';
+import Order from '@/models/order';
+
+export async function GET(request) {
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get('userId')?.value;
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    await connectDB();
+    
+    // Find all orders for the user, sorted by most recent first
+    const orders = await Order.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'items.rawMaterial',
+        select: 'name mainImage price'
+      })
+      .lean();
+    
+    return NextResponse.json({
+      success: true,
+      orders
+    });
+    
+  } catch (error) {
+    console.error('Fetch order history error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch order history', details: error.message },
+      { status: 500 }
+    );
+  }
+}

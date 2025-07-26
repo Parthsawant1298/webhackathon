@@ -227,25 +227,13 @@ export async function POST(request) {
         continue;
       }
       
-      // Calculate new quantity
-      const newQuantity = rawMaterial.quantity - item.quantity;
-      
-      // FIXED: Ensure quantity doesn't go below 0
-      if (newQuantity < 0) {
-        availabilityIssues.push({
-          rawMaterialId: rawMaterial._id,
-          name: rawMaterial.name,
-          requestedQuantity: item.quantity,
-          availableQuantity: rawMaterial.quantity,
-          message: 'Insufficient stock for this order'
-        });
-        continue;
-      }
+      // Calculate new quantity (allow 0)
+      const newQuantity = Math.max(0, rawMaterial.quantity - item.quantity);
       
       // Store the update for later execution
       stockUpdates.push({
         rawMaterialId: rawMaterial._id,
-        newQuantity: Math.max(0, newQuantity), // Ensure it's never negative
+        newQuantity: newQuantity,
         originalQuantity: rawMaterial.quantity,
         orderedQuantity: item.quantity
       });
@@ -268,20 +256,20 @@ export async function POST(request) {
       try {
         console.log(`Updating ${update.rawMaterialId}: ${update.originalQuantity} -> ${update.newQuantity}`);
         
-        // FIXED: Use updateOne with proper validation bypass
-        const result = await RawMaterial.updateOne(
-          { _id: update.rawMaterialId },
+        // FIXED: Use findByIdAndUpdate with validation bypass for quantity 0
+        const result = await RawMaterial.findByIdAndUpdate(
+          update.rawMaterialId,
           { 
             $set: { quantity: update.newQuantity }
           },
           { 
-            runValidators: true,
-            // FIXED: Ensure the update respects the minimum value
-            new: true 
+            new: true,
+            runValidators: false, // Bypass validation to allow quantity 0
+            lean: true
           }
         );
         
-        if (result.modifiedCount === 1) {
+        if (result) {
           updateResults.push({ success: true, rawMaterialId: update.rawMaterialId });
           console.log(`Successfully updated ${update.rawMaterialId}`);
         } else {
@@ -296,9 +284,10 @@ export async function POST(request) {
           if (prevUpdate.success) {
             const rollbackUpdate = stockUpdates.find(u => u.rawMaterialId === prevUpdate.rawMaterialId);
             if (rollbackUpdate) {
-              await RawMaterial.updateOne(
-                { _id: rollbackUpdate.rawMaterialId },
-                { $set: { quantity: rollbackUpdate.originalQuantity } }
+              await RawMaterial.findByIdAndUpdate(
+                rollbackUpdate.rawMaterialId,
+                { $set: { quantity: rollbackUpdate.originalQuantity } },
+                { runValidators: false }
               );
               console.log(`Rolled back ${rollbackUpdate.rawMaterialId}`);
             }

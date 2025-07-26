@@ -1,10 +1,10 @@
-// app/api/order/[id]/route.js
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+// app/api/order/recent/route.js
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-export async function GET(request, { params }) {
+export async function GET(request) {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
@@ -18,20 +18,15 @@ export async function GET(request, { params }) {
     
     await connectDB();
     
-    // Find the specific order for the user
-    const order = await Order.findOne({ 
-      _id: (await params).id, 
-      user: userId 
-    })
-    .populate({
-      path: 'items.rawMaterial',
-      select: 'name mainImage price description category'
-    })
-    .lean();
+    // Find the most recent order for the user
+    const order = await Order.findOne({ user: userId })
+      .sort({ createdAt: -1 })
+      .populate('items.rawMaterial')
+      .lean();
     
     if (!order) {
       return NextResponse.json(
-        { error: 'Order not found' },
+        { error: 'No recent orders found' },
         { status: 404 }
       );
     }
@@ -42,9 +37,9 @@ export async function GET(request, { params }) {
     });
     
   } catch (error) {
-    console.error('Fetch order details error:', error);
+    console.error('Fetch recent order error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch order details', details: error.message },
+      { error: 'Failed to fetch recent order', details: error.message },
       { status: 500 }
     );
   }
