@@ -1,3 +1,4 @@
+// models/rawMaterial.js - CLEANED VERSION (Remove unused rating logic)
 import mongoose from 'mongoose';
 
 const rawMaterialSchema = new mongoose.Schema({
@@ -74,8 +75,7 @@ const rawMaterialSchema = new mongoose.Schema({
     ref: 'Supplier',
     required: true
   },
-  // Reviews are now stored in separate Review collection
-  // These fields store aggregated review data for performance
+  // ✅ KEEP: These fields store aggregated review data for performance
   ratings: {
     type: Number,
     default: 0,
@@ -95,53 +95,13 @@ const rawMaterialSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for search optimization
+// ✅ KEEP: Essential indexes for search optimization
 rawMaterialSchema.index({ name: 'text', description: 'text', category: 'text', subcategory: 'text' });
 rawMaterialSchema.index({ category: 1, subcategory: 1 });
 rawMaterialSchema.index({ createdBy: 1 });
 rawMaterialSchema.index({ createdAt: -1 });
 rawMaterialSchema.index({ ratings: -1 }); // Index for sorting by ratings
 rawMaterialSchema.index({ numReviews: -1 }); // Index for sorting by review count
-
-// Virtual for getting reviews from separate Review collection
-rawMaterialSchema.virtual('reviewsData', {
-  ref: 'Review',
-  localField: '_id',
-  foreignField: 'rawMaterialId',
-  match: { isActive: true }
-});
-
-// Method to update ratings based on separate Review collection
-rawMaterialSchema.methods.updateRatingsFromReviews = async function() {
-  const Review = require('./review').default || require('./review');
-  
-  const aggregateResult = await Review.aggregate([
-    {
-      $match: {
-        rawMaterialId: this._id,
-        isActive: true
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        avgRating: { $avg: '$rating' },
-        totalReviews: { $sum: 1 }
-      }
-    }
-  ]);
-
-  if (aggregateResult.length > 0) {
-    this.ratings = Math.round(aggregateResult[0].avgRating * 10) / 10; // Round to 1 decimal
-    this.numReviews = aggregateResult[0].totalReviews;
-  } else {
-    this.ratings = 0;
-    this.numReviews = 0;
-  }
-
-  return this.save();
-};
-
 const RawMaterial = mongoose.models.RawMaterial || mongoose.model('RawMaterial', rawMaterialSchema);
 
 export default RawMaterial;

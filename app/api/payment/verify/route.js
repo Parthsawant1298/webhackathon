@@ -1,8 +1,9 @@
-// app/api/payment/verify/route.js - FIXED VERSION
+// app/api/payment/verify/route.js - FIXED VERSION WITH ATOMIC TRANSACTIONS
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import Cart from '@/models/cart';
 import Order from '@/models/order';
@@ -146,6 +147,9 @@ async function sendReceiptEmail(order, user) {
 }
 
 export async function POST(request) {
+  // Start MongoDB session for transaction
+  const session = await mongoose.startSession();
+  
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
@@ -195,135 +199,84 @@ export async function POST(request) {
     console.log('Processing order:', order._id);
     console.log('Order items:', order.items.length);
     
-    // Verify raw materials availability and reduce stock
-    const availabilityIssues = [];
-    const stockUpdates = [];
-    
-    // First, check all items for availability
-    for (const item of order.items) {
-      console.log(`Checking item: ${item.rawMaterial.name}, ordered: ${item.quantity}`);
+    // Start transaction for atomic stock updates
+    const transactionResult = await session.withTransaction(async () => {
+      console.log('Starting atomic transaction for stock updates...');
       
-      const rawMaterial = await RawMaterial.findById(item.rawMaterial._id);
-      
-      if (!rawMaterial) {
-        availabilityIssues.push({
-          rawMaterialId: item.rawMaterial._id,
-          message: 'Raw material no longer exists'
-        });
-        continue;
-      }
-      
-      console.log(`Current stock: ${rawMaterial.quantity}, needed: ${item.quantity}`);
-      
-      // Check raw material availability
-      if (rawMaterial.quantity < item.quantity) {
-        availabilityIssues.push({
-          rawMaterialId: rawMaterial._id,
-          name: rawMaterial.name,
-          requestedQuantity: item.quantity,
-          availableQuantity: rawMaterial.quantity,
-          message: `Only ${rawMaterial.quantity} units available`
-        });
-        continue;
-      }
-      
-      // Calculate new quantity (allow 0)
-      const newQuantity = Math.max(0, rawMaterial.quantity - item.quantity);
-      
-      // Store the update for later execution
-      stockUpdates.push({
-        rawMaterialId: rawMaterial._id,
-        newQuantity: newQuantity,
-        originalQuantity: rawMaterial.quantity,
-        orderedQuantity: item.quantity
-      });
-    }
-    
-    // If there are availability issues, don't proceed
-    if (availabilityIssues.length > 0) {
-      console.log('Availability issues found:', availabilityIssues);
-      return NextResponse.json({ 
-        error: 'Some raw materials are no longer available',
-        availabilityIssues 
-      }, { status: 400 });
-    }
-    
-    // Execute all stock updates
-    console.log('Executing stock updates...');
-    const updateResults = [];
-    
-    for (const update of stockUpdates) {
-      try {
-        console.log(`Updating ${update.rawMaterialId}: ${update.originalQuantity} -> ${update.newQuantity}`);
+      // Process each item in the order atomically
+      for (const item of order.items) {
+        console.log(`Processing item: ${item.rawMaterial.name}, ordered: ${item.quantity}`);
         
-        // FIXED: Use findByIdAndUpdate with validation bypass for quantity 0
-        const result = await RawMaterial.findByIdAndUpdate(
-          update.rawMaterialId,
+        // Use findOneAndUpdate with stock check for atomic operation
+        const updatedMaterial = await RawMaterial.findOneAndUpdate(
           { 
-            $set: { quantity: update.newQuantity }
+            _id: item.rawMaterial._id,
+            quantity: { $gte: item.quantity }, // Ensure sufficient stock
+            isActive: true
+          },
+          { 
+            $inc: { quantity: -item.quantity } // Atomic decrement
           },
           { 
             new: true,
-            runValidators: false, // Bypass validation to allow quantity 0
-            lean: true
+            session, // Use transaction session
+            runValidators: false // Allow quantity to reach 0
           }
         );
         
-        if (result) {
-          updateResults.push({ success: true, rawMaterialId: update.rawMaterialId });
-          console.log(`Successfully updated ${update.rawMaterialId}`);
-        } else {
-          throw new Error(`Failed to update raw material ${update.rawMaterialId}`);
-        }
-        
-      } catch (updateError) {
-        console.error(`Error updating raw material ${update.rawMaterialId}:`, updateError);
-        
-        // Rollback previous updates if this one fails
-        for (const prevUpdate of updateResults) {
-          if (prevUpdate.success) {
-            const rollbackUpdate = stockUpdates.find(u => u.rawMaterialId === prevUpdate.rawMaterialId);
-            if (rollbackUpdate) {
-              await RawMaterial.findByIdAndUpdate(
-                rollbackUpdate.rawMaterialId,
-                { $set: { quantity: rollbackUpdate.originalQuantity } },
-                { runValidators: false }
-              );
-              console.log(`Rolled back ${rollbackUpdate.rawMaterialId}`);
-            }
+        if (!updatedMaterial) {
+          // Stock insufficient or material not found
+          const currentMaterial = await RawMaterial.findById(item.rawMaterial._id, null, { session });
+          
+          if (!currentMaterial) {
+            throw new Error(`Raw material ${item.rawMaterial.name} no longer exists`);
           }
+          
+          if (!currentMaterial.isActive) {
+            throw new Error(`Raw material ${item.rawMaterial.name} is no longer active`);
+          }
+          
+          throw new Error(`Insufficient stock for ${item.rawMaterial.name}. Available: ${currentMaterial.quantity}, Requested: ${item.quantity}`);
         }
         
-        return NextResponse.json({ 
-          error: 'Failed to update stock',
-          details: updateError.message
-        }, { status: 500 });
+        console.log(`✅ Atomically updated ${item.rawMaterial.name}: ${updatedMaterial.quantity} remaining`);
       }
-    }
+      
+      // Update order status within the same transaction
+      const updatedOrder = await Order.findByIdAndUpdate(
+        order._id,
+        {
+          $set: {
+            status: 'processing',
+            paymentStatus: 'completed',
+            'paymentInfo.razorpayPaymentId': razorpayPaymentId,
+            'paymentInfo.razorpaySignature': razorpaySignature
+          }
+        },
+        { 
+          new: true,
+          session
+        }
+      ).populate('items.rawMaterial');
+      
+      console.log('✅ Order status updated to processing within transaction');
+      return updatedOrder;
+    });
     
-    console.log('All stock updates completed successfully');
+    console.log('✅ Transaction completed successfully');
     
-    // Update order status
-    order.status = 'processing';
-    order.paymentStatus = 'completed';
-    order.paymentInfo.razorpayPaymentId = razorpayPaymentId;
-    order.paymentInfo.razorpaySignature = razorpaySignature;
-    
-    await order.save();
-    console.log('Order status updated to processing');
-    
-    // Get user data for email
+    // Get user data for email (outside transaction)
     const user = await User.findById(userId);
     
     // Send receipt email
     let emailSent = false;
     if (user && user.email) {
       console.log('Sending receipt email to:', user.email);
-      emailSent = await sendReceiptEmail(order, user);
+      emailSent = await sendReceiptEmail(transactionResult, user);
       console.log('Email sent status:', emailSent);
     }
     
-    // Clear the user's cart
+    // Clear the user's cart (outside transaction)
     await Cart.findOneAndUpdate(
       { user: userId },
       { $set: { items: [] } }
@@ -335,17 +288,35 @@ export async function POST(request) {
       message: 'Payment verified and order processed successfully',
       emailSent,
       order: {
-        id: order._id,
-        status: order.status,
-        paymentStatus: order.paymentStatus
+        id: transactionResult._id,
+        status: transactionResult.status,
+        paymentStatus: transactionResult.paymentStatus
       }
     });
     
   } catch (error) {
     console.error('Payment verification error:', error);
+    
+    // Check if it's a stock-related error
+    if (error.message.includes('Insufficient stock') || 
+        error.message.includes('no longer exists') || 
+        error.message.includes('no longer active')) {
+      return NextResponse.json(
+        { 
+          error: 'Stock availability changed during payment processing',
+          details: error.message,
+          type: 'stock_error'
+        },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to verify payment', details: error.message },
       { status: 500 }
     );
+  } finally {
+    // Always end the session
+    await session.endSession();
   }
 }

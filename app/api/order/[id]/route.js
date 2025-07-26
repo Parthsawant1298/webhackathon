@@ -1,8 +1,9 @@
-// app/api/order/[id]/route.js
+// app/api/order/[id]/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
+import RawMaterial from '@/models/rawMaterial'; // ✅ ADD THIS IMPORT
 
 export async function GET(request, { params }) {
   try {

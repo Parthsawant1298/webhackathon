@@ -7,12 +7,16 @@ import WhyChooseUs from '@/components/Whychoose';
 import Pricing from '@/components/Pricing';
 import Lowerfooter from '@/components/Lowerfooter';
 import Partner from '@/components/Partner';
+import NewArrivals from '@/components/NewArrivals';
+import TopRawMaterials from '@/components/TopRawMaterials';
 export default function page(){
   return(
     <main>
       <Header />
       <Hero />
       <Stats />
+      <NewArrivals />
+      <TopRawMaterials />
       <WhyChooseUs />
       <Pricing />
       <Lowerfooter />

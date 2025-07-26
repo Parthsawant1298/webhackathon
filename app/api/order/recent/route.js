@@ -1,6 +1,7 @@
-// app/api/order/recent/route.js
+// app/api/order/recent/route.js - FIXED VERSION
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
+import RawMaterial from '@/models/rawMaterial'; // ✅ ADD THIS IMPORT
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
