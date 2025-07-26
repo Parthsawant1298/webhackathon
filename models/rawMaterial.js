@@ -74,35 +74,8 @@ const rawMaterialSchema = new mongoose.Schema({
     ref: 'Supplier',
     required: true
   },
-  reviews: [{
-    userName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [50, 'User name cannot be more than 50 characters']
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: [1, 'Rating must be at least 1'],
-      max: [5, 'Rating cannot be more than 5']
-    },
-    title: {
-      type: String,
-      trim: true,
-      maxlength: [100, 'Review title cannot be more than 100 characters']
-    },
-    comment: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [500, 'Review comment cannot be more than 500 characters']
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  // Reviews are now stored in separate Review collection
+  // These fields store aggregated review data for performance
   ratings: {
     type: Number,
     default: 0,
@@ -127,6 +100,47 @@ rawMaterialSchema.index({ name: 'text', description: 'text', category: 'text', s
 rawMaterialSchema.index({ category: 1, subcategory: 1 });
 rawMaterialSchema.index({ createdBy: 1 });
 rawMaterialSchema.index({ createdAt: -1 });
+rawMaterialSchema.index({ ratings: -1 }); // Index for sorting by ratings
+rawMaterialSchema.index({ numReviews: -1 }); // Index for sorting by review count
+
+// Virtual for getting reviews from separate Review collection
+rawMaterialSchema.virtual('reviewsData', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'rawMaterialId',
+  match: { isActive: true }
+});
+
+// Method to update ratings based on separate Review collection
+rawMaterialSchema.methods.updateRatingsFromReviews = async function() {
+  const Review = require('./review').default || require('./review');
+  
+  const aggregateResult = await Review.aggregate([
+    {
+      $match: {
+        rawMaterialId: this._id,
+        isActive: true
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        avgRating: { $avg: '$rating' },
+        totalReviews: { $sum: 1 }
+      }
+    }
+  ]);
+
+  if (aggregateResult.length > 0) {
+    this.ratings = Math.round(aggregateResult[0].avgRating * 10) / 10; // Round to 1 decimal
+    this.numReviews = aggregateResult[0].totalReviews;
+  } else {
+    this.ratings = 0;
+    this.numReviews = 0;
+  }
+
+  return this.save();
+};
 
 const RawMaterial = mongoose.models.RawMaterial || mongoose.model('RawMaterial', rawMaterialSchema);
 

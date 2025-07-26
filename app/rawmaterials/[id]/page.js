@@ -70,7 +70,7 @@ export default function RawMaterialDetailPage({ params }) {
       const materialResponse = await fetch(`/api/rawmaterials/${id}`)
       if (materialResponse.ok) {
         const materialData = await materialResponse.json()
-        if (materialData.rawMaterial) {
+        if (materialData.success && materialData.rawMaterial) {
           setRawMaterial(materialData.rawMaterial)
           console.log("Material updated:", materialData.rawMaterial.ratings, materialData.rawMaterial.numReviews) // Debug log
         }
@@ -81,7 +81,7 @@ export default function RawMaterialDetailPage({ params }) {
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json()
         console.log("Reviews response:", reviewsData); // Debug log
-        if (reviewsData.reviews) {
+        if (reviewsData.success && reviewsData.reviews) {
           setReviews(reviewsData.reviews)
           console.log("Reviews fetched:", reviewsData.reviews.length) // Debug log
           
@@ -114,7 +114,7 @@ export default function RawMaterialDetailPage({ params }) {
         
         const data = await response.json()
 
-        if (!data.rawMaterial) {
+        if (!data.success || !data.rawMaterial) {
           throw new Error('Raw material data not found')
         }
 
@@ -155,34 +155,36 @@ export default function RawMaterialDetailPage({ params }) {
           throw new Error(data.error || "Failed to fetch reviews")
         }
 
-        setReviews(data.reviews || [])
+        if (data.success) {
+          setReviews(data.reviews || [])
 
-        // Check current user and if they have reviewed
-        try {
-          const userResponse = await fetch("/api/auth/user")
-          if (userResponse.ok) {
-            const userData = await userResponse.json()
-            console.log('Current user data:', userData); // Debug log
-            if (userData.user) {
-              setCurrentUser(userData.user)
-              const userReview = (data.reviews || []).find((review) => 
-                review.userId && userData.user.id && 
-                review.userId.toString() === userData.user.id.toString()
-              )
-              console.log("User review found:", userReview) // Debug log
-              if (userReview) {
-                setHasUserReviewed(true)
-                setUserReviewId(userReview._id)
-                console.log('User has reviewed - setting hasUserReviewed to true'); // Debug log
-              } else {
-                setHasUserReviewed(false)
-                setUserReviewId(null)
-                console.log('User has not reviewed - setting hasUserReviewed to false'); // Debug log
+          // Check current user and if they have reviewed
+          try {
+            const userResponse = await fetch("/api/auth/user")
+            if (userResponse.ok) {
+              const userData = await userResponse.json()
+              console.log('Current user data:', userData); // Debug log
+              if (userData.success && userData.user) {
+                setCurrentUser(userData.user)
+                const userReview = (data.reviews || []).find((review) => 
+                  review.userId && userData.user.id && 
+                  review.userId.toString() === userData.user.id.toString()
+                )
+                console.log("User review found:", userReview) // Debug log
+                if (userReview) {
+                  setHasUserReviewed(true)
+                  setUserReviewId(userReview._id)
+                  console.log('User has reviewed - setting hasUserReviewed to true'); // Debug log
+                } else {
+                  setHasUserReviewed(false)
+                  setUserReviewId(null)
+                  console.log('User has not reviewed - setting hasUserReviewed to false'); // Debug log
+                }
               }
             }
+          } catch (userError) {
+            console.error("User fetch error:", userError)
           }
-        } catch (userError) {
-          console.error("User fetch error:", userError)
         }
 
       } catch (error) {
@@ -207,7 +209,7 @@ export default function RawMaterialDetailPage({ params }) {
         return false
       }
       const userData = await response.json()
-      return !!userData.user
+      return userData.success && !!userData.user
     } catch (error) {
       return false
     }
@@ -217,7 +219,7 @@ export default function RawMaterialDetailPage({ params }) {
     try {
       const isLoggedIn = await checkAuth()
       if (!isLoggedIn) {
-        router.push('/Login')
+        router.push('/login')
         return
       }
       
@@ -249,7 +251,7 @@ export default function RawMaterialDetailPage({ params }) {
     try {
       const isLoggedIn = await checkAuth()
       if (!isLoggedIn) {
-        router.push('/Login')
+        router.push('/login')
         return
       }
 
@@ -338,18 +340,20 @@ export default function RawMaterialDetailPage({ params }) {
         throw new Error(data.error || "Failed to submit review")
       }
 
-      // Update user review states immediately
-      setHasUserReviewed(true)
-      setUserReviewId(data.review._id)
+      if (data.success) {
+        // Update user review states immediately
+        setHasUserReviewed(true)
+        setUserReviewId(data.review._id)
 
-      // Refresh all data to ensure consistency
-      await refreshData()
+        // Refresh all data to ensure consistency
+        await refreshData()
 
-      // Reset form and show success message
-      setReviewForm({ rating: 5, comment: "", title: "" })
-      setReviewSubmitSuccess("Your review has been submitted successfully!")
+        // Reset form and show success message
+        setReviewForm({ rating: 5, comment: "", title: "" })
+        setReviewSubmitSuccess("Your review has been submitted successfully!")
 
-      showToast("Review submitted successfully!", "success")
+        showToast("Review submitted successfully!", "success")
+      }
     } catch (error) {
       console.error("Submit review error:", error)
       setReviewSubmitError(error.message || "Failed to submit review. Please try again.")
@@ -404,11 +408,13 @@ export default function RawMaterialDetailPage({ params }) {
         throw new Error(data.error || "Failed to update review")
       }
 
-      // Refresh all data to ensure consistency
-      await refreshData()
+      if (data.success) {
+        // Refresh all data to ensure consistency
+        await refreshData()
 
-      setEditingReview(null)
-      showToast("Review updated successfully!", "success")
+        setEditingReview(null)
+        showToast("Review updated successfully!", "success")
+      }
     } catch (error) {
       console.error("Update review error:", error)
       showToast(error.message || "Failed to update review", "error")
@@ -434,14 +440,16 @@ export default function RawMaterialDetailPage({ params }) {
         throw new Error(data.error || "Failed to delete review")
       }
 
-      // Reset user review states immediately
-      setHasUserReviewed(false)
-      setUserReviewId(null)
-      
-      // Refresh all data to ensure consistency
-      await refreshData()
+      if (data.success) {
+        // Reset user review states immediately
+        setHasUserReviewed(false)
+        setUserReviewId(null)
+        
+        // Refresh all data to ensure consistency
+        await refreshData()
 
-      showToast("Review deleted successfully!", "success")
+        showToast("Review deleted successfully!", "success")
+      }
     } catch (error) {
       console.error("Delete review error:", error)
       showToast(error.message || "Failed to delete review", "error")
@@ -669,7 +677,7 @@ export default function RawMaterialDetailPage({ params }) {
                     <Star
                       key={i}
                       size={18}
-                      fill={i < Math.floor(rawMaterial.ratings || 0) ? "currentColor" : "none"}
+                      fill={i < Math.round(rawMaterial.ratings || 0) ? "currentColor" : "none"}
                       stroke="currentColor"
                     />
                   ))}
@@ -1051,7 +1059,7 @@ export default function RawMaterialDetailPage({ params }) {
                     <div className="bg-gray-50 p-4 rounded-md flex items-center">
                       <User size={18} className="text-gray-600 mr-2" />
                       <p className="text-gray-700">
-                        Please <button onClick={() => router.push('/Login')} className="text-teal-600 hover:underline">login</button> to write a review.
+                        Please <button onClick={() => router.push('/login')} className="text-teal-600 hover:underline">login</button> to write a review.
                       </p>
                     </div>
                   </div>
@@ -1341,7 +1349,6 @@ export default function RawMaterialDetailPage({ params }) {
                   
                   {rawMaterial.createdBy.phone && (
                     <a
-                      href={`tel:${rawMaterial.createdBy.phone}`}
                       className="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 transition-colors text-center font-medium"
                     >
                       Call Now

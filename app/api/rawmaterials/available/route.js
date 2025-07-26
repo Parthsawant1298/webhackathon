@@ -1,6 +1,7 @@
 // /api/rawmaterials/available/route.js
 import connectDB from '@/lib/mongodb';
 import RawMaterial from '@/models/rawMaterial';
+import Review from '@/models/review';
 import Supplier from '@/models/supplier';
 import { NextResponse } from 'next/server';
 
@@ -21,8 +22,30 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Calculate some helpful fields
-    const processedMaterials = rawMaterials.map(material => {
+    // Update ratings for all materials and process them
+    const processedMaterials = await Promise.all(rawMaterials.map(async (material) => {
+      // Get current reviews for this material
+      const allReviews = await Review.find({ 
+        rawMaterialId: material._id, 
+        isActive: true 
+      });
+
+      let currentRatings = 0;
+      let currentNumReviews = allReviews.length;
+
+      if (currentNumReviews > 0) {
+        const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+        currentRatings = totalRating / currentNumReviews;
+      }
+
+      // Update the raw material in database if ratings don't match
+      if (material.ratings !== currentRatings || material.numReviews !== currentNumReviews) {
+        await RawMaterial.findByIdAndUpdate(material._id, {
+          ratings: currentRatings,
+          numReviews: currentNumReviews
+        });
+      }
+
       // Calculate discount percentage if originalPrice exists
       let discount = 0;
       if (material.originalPrice && material.originalPrice > material.price) {
@@ -36,18 +59,14 @@ export async function GET() {
         mainImage = typeof material.images[0] === 'string' ? material.images[0] : material.images[0].url;
       }
 
-      // Initialize rating data from the model fields
-      let ratings = material.ratings || 0;
-      let numReviews = material.numReviews || 0;
-      
-      console.log(`Material ${material.name}: ratings=${ratings}, numReviews=${numReviews}`); // Debug log
+      console.log(`Material ${material.name}: updated ratings=${currentRatings}, numReviews=${currentNumReviews}`);
 
       return {
         ...material,
         discount,
         mainImage,
-        ratings: parseFloat(ratings.toFixed(1)),
-        numReviews,
+        ratings: parseFloat(currentRatings.toFixed(1)),
+        numReviews: currentNumReviews,
         // Format features as array if it's a string
         features: typeof material.features === 'string' ? 
           material.features.split(',').map(f => f.trim()).filter(f => f) : 
@@ -57,7 +76,7 @@ export async function GET() {
           material.tags.split(',').map(t => t.trim()).filter(t => t) : 
           material.tags || []
       };
-    });
+    }));
 
     return NextResponse.json({
       success: true,
@@ -68,11 +87,7 @@ export async function GET() {
   } catch (error) {
     console.error('Fetch raw materials error:', error);
     return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to fetch raw materials',
-        details: error.message 
-      },
+      { success: false, error: 'Failed to fetch raw materials', details: error.message },
       { status: 500 }
     );
   }

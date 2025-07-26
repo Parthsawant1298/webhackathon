@@ -1158,13 +1158,13 @@ export default function RawMaterialsPage() {
                                                 <Star 
                                                   key={`${material._id}-star-${i}`}
                                                   size={14} 
-                                                  fill={i < Math.floor(material.ratings || 0) ? "currentColor" : "none"}
+                                                  fill={i < Math.round(material.ratings || 0) ? "currentColor" : "none"}
                                                   stroke="currentColor" 
                                                 />
                                               ))}
                                             </div>
                                             <span className="text-xs text-gray-500 ml-1">
-                                              ({material.numReviews || 0})
+                                              {material.ratings ? material.ratings.toFixed(1) : '0.0'} ({material.numReviews || 0})
                                             </span>
                                           </div>
                                           
@@ -1239,13 +1239,13 @@ export default function RawMaterialsPage() {
                                                   <Star 
                                                     key={`${material._id}-list-star-${i}`}
                                                     size={14} 
-                                                    fill={i < Math.floor(material.ratings || 0) ? "currentColor" : "none"}
+                                                    fill={i < Math.round(material.ratings || 0) ? "currentColor" : "none"}
                                                     stroke="currentColor" 
                                                   />
                                                 ))}
                                               </div>
                                               <span className="text-xs text-gray-500 ml-1">
-                                                ({material.numReviews || 0})
+                                                {material.ratings ? material.ratings.toFixed(1) : '0.0'} ({material.numReviews || 0})
                                               </span>
                                             </div>
                                           </div>
