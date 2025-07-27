@@ -18,6 +18,7 @@ import {
   CreditCard,
   Mail,
   Activity,
+  AlertTriangle,
 } from "lucide-react"
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 import SupplierHeader from "@/components/SupplierHeader"
@@ -48,16 +49,45 @@ export default function SupplierAnalyticsPage() {
   })
 
   useEffect(() => {
-    fetchAnalytics()
-  }, [timeRange])
+    checkAuth()
+  }, [])
+
+  useEffect(() => {
+    if (!isLoading) {
+      fetchAnalytics()
+    }
+  }, [timeRange, isLoading])
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch("/api/supplier/auth/user")
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error("Not authenticated")
+      }
+
+      setIsLoading(false)
+    } catch (error) {
+      console.error("Authentication check failed:", error)
+      router.push("/supplier/login")
+    }
+  }
 
   const fetchAnalytics = async () => {
     try {
       setIsRefreshing(true)
+      setError("")
+
       const response = await fetch(`/api/supplier/analytics?timeRange=${timeRange}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       const data = await response.json()
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.error || "Failed to fetch analytics")
       }
 
@@ -65,13 +95,13 @@ export default function SupplierAnalyticsPage() {
       setAnalyticsData(prevData => ({
         ...prevData,
         ...data.data, // Access the nested data object
-        stats: { ...prevData.stats, ...data.stats },
-        insights: { ...prevData.insights, ...data.insights },
       }))
-      setError("")
+
+      console.log('Analytics data loaded:', data.data)
+
     } catch (error) {
       console.error("Failed to fetch analytics:", error)
-      setError("Failed to load analytics data")
+      setError(`Failed to load analytics data: ${error.message}`)
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -136,7 +166,7 @@ export default function SupplierAnalyticsPage() {
     const chartData = data.slice(-30).map((item) => ({
       date: formatDate(item._id),
       revenue: item.revenue,
-      orders: item.orders,
+      orders: item.orders || item.orderIds?.length || 0,
     }))
 
     return (
@@ -177,7 +207,14 @@ export default function SupplierAnalyticsPage() {
   }
 
   const CategoryDonutChart = ({ data }) => {
-    if (!data || data.length === 0) return null
+    if (!data || data.length === 0) return (
+      <div className="flex items-center justify-center h-32 text-gray-500">
+        <div className="text-center">
+          <PieChart size={32} className="mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">No category data</p>
+        </div>
+      </div>
+    )
 
     const total = data.reduce((sum, item) => sum + item.revenue, 0)
     const colors = ["#14B8A6", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#10B981"]
@@ -381,18 +418,7 @@ export default function SupplierAnalyticsPage() {
           {error && (
             <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
               <div className="flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 sm:h-5 sm:w-5 mr-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <AlertTriangle size={16} className="mr-2 flex-shrink-0" />
                 <span className="text-sm sm:text-base">{error}</span>
               </div>
             </div>
@@ -537,7 +563,7 @@ export default function SupplierAnalyticsPage() {
                 </div>
               </div>
               <div className="space-y-3 sm:space-y-4">
-                {analyticsData.productRevenue.slice(0, 5).map((product, index) => (
+                {(analyticsData.productRevenue || []).slice(0, 5).map((product, index) => (
                   <div
                     key={product._id}
                     className="flex items-center space-x-3 sm:space-x-4 p-2 sm:p-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -560,6 +586,12 @@ export default function SupplierAnalyticsPage() {
                     </div>
                   </div>
                 ))}
+                {(!analyticsData.productRevenue || analyticsData.productRevenue.length === 0) && (
+                  <div className="text-center py-6 text-gray-500">
+                    <Package size={32} className="mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No product data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -576,7 +608,7 @@ export default function SupplierAnalyticsPage() {
                 </div>
               </div>
               <div className="space-y-3 sm:space-y-4">
-                {analyticsData.topVendors.slice(0, 5).map((vendor, index) => (
+                {(analyticsData.topVendors || []).slice(0, 5).map((vendor, index) => (
                   <div
                     key={vendor._id}
                     className="flex items-center space-x-3 sm:space-x-4 p-2 sm:p-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -602,6 +634,12 @@ export default function SupplierAnalyticsPage() {
                     </div>
                   </div>
                 ))}
+                {(!analyticsData.topVendors || analyticsData.topVendors.length === 0) && (
+                  <div className="text-center py-6 text-gray-500">
+                    <Users size={32} className="mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No vendor data available</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -619,7 +657,7 @@ export default function SupplierAnalyticsPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              {analyticsData.orderSizeAnalysis.map((range, index) => (
+              {(analyticsData.orderSizeAnalysis || []).map((range, index) => (
                 <div
                   key={range._id}
                   className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50 transition-colors"
@@ -630,6 +668,12 @@ export default function SupplierAnalyticsPage() {
                   <div className="text-xs sm:text-sm text-teal-600 mt-1 font-medium">{formatCurrency(range.revenue)}</div>
                 </div>
               ))}
+              {(!analyticsData.orderSizeAnalysis || analyticsData.orderSizeAnalysis.length === 0) && (
+                <div className="col-span-full text-center py-6 text-gray-500">
+                  <ShoppingCart size={32} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No order size data available</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -646,7 +690,7 @@ export default function SupplierAnalyticsPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {analyticsData.paymentAnalysis.map((payment, index) => (
+              {(analyticsData.paymentAnalysis || []).map((payment, index) => (
                 <div
                   key={payment._id}
                   className="p-4 sm:p-5 border border-gray-200 rounded-lg hover:border-teal-200 hover:shadow-sm transition-all"
@@ -657,7 +701,7 @@ export default function SupplierAnalyticsPage() {
                       <span className="truncate">{payment._id}</span>
                     </span>
                     <span className="text-xs px-2 py-1 bg-teal-100 text-teal-800 rounded-full flex-shrink-0">
-                      {Math.round((payment.revenue / analyticsData.summary.thisYear.revenue) * 100)}%
+                      {Math.round((payment.revenue / (analyticsData.summary.thisYear.revenue || 1)) * 100)}%
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -677,15 +721,100 @@ export default function SupplierAnalyticsPage() {
                       <div
                         className="bg-teal-500 h-1.5 rounded-full"
                         style={{
-                          width: `${Math.round((payment.revenue / analyticsData.summary.thisYear.revenue) * 100)}%`,
+                          width: `${Math.round((payment.revenue / (analyticsData.summary.thisYear.revenue || 1)) * 100)}%`,
                         }}
                       ></div>
                     </div>
                   </div>
                 </div>
               ))}
+              {(!analyticsData.paymentAnalysis || analyticsData.paymentAnalysis.length === 0) && (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <CreditCard size={32} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No payment data available</p>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Vendor Analytics */}
+          {(analyticsData.vendorAnalytics || []).length > 0 && (
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow mt-4 sm:mt-6 lg:mt-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Vendor Spending Analysis</h3>
+                  <p className="text-xs sm:text-sm text-gray-500">Distribution of vendors by spending ranges</p>
+                </div>
+                <div className="p-1.5 sm:p-2 bg-indigo-50 rounded-full">
+                  <Users size={16} className="text-indigo-600 sm:hidden" />
+                  <Users size={20} className="text-indigo-600 hidden sm:block" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {analyticsData.vendorAnalytics.map((bucket, index) => (
+                  <div
+                    key={index}
+                    className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+                  >
+                    <div className="text-xs sm:text-sm font-medium text-gray-600 mb-2">
+                      {bucket._id === 'Other' ? 'Other' : `₹${bucket._id.toLocaleString()}`}
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-gray-900">{bucket.vendors}</div>
+                    <div className="text-xs text-gray-500">vendors</div>
+                    <div className="text-xs sm:text-sm text-indigo-600 mt-1 font-medium">
+                      {formatCurrency(bucket.totalRevenue)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Monthly Revenue Chart */}
+          {(analyticsData.monthlyRevenue || []).length > 0 && (
+            <div className="mt-4 sm:mt-6 lg:mt-8 bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-6">
+                <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg mr-2 sm:mr-3 text-green-600">
+                  <TrendingUp size={16} className="sm:hidden" />
+                  <TrendingUp size={20} className="hidden sm:block" />
+                </div>
+                Monthly Revenue Trend
+              </h2>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-4">
+                {analyticsData.monthlyRevenue.map((month, index) => {
+                  const maxRevenue = Math.max(...analyticsData.monthlyRevenue.map((m) => m.revenue))
+                  const height = maxRevenue > 0 ? (month.revenue / maxRevenue) * 100 : 0
+                  const monthName = new Date(month._id.year, month._id.month - 1).toLocaleDateString("en-US", {
+                    month: "short",
+                  })
+
+                  return (
+                    <div key={index} className="text-center">
+                      <div className="h-24 sm:h-32 lg:h-40 flex items-end justify-center mb-2">
+                        <div
+                          className="w-8 sm:w-12 lg:w-16 bg-gradient-to-t from-teal-600 to-teal-400 rounded-t-lg transition-all duration-500 hover:from-teal-700 hover:to-teal-500 cursor-pointer relative group"
+                          style={{ height: `${Math.max(height, 4)}%` }}
+                        >
+                          <div className="absolute -top-8 sm:-top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-1.5 sm:px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            ₹{month.revenue.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs sm:text-sm font-medium text-gray-800 bg-gray-100 rounded-lg px-1.5 sm:px-2 py-1 mb-1">
+                        {monthName}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        ₹
+                        {month.revenue >= 1000 ? (month.revenue / 1000).toFixed(0) + "k" : month.revenue}
+                      </div>
+                      <div className="text-xs text-teal-600 font-medium">{month.orders || month.orderCount} orders</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
