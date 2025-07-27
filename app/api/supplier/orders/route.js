@@ -1,12 +1,11 @@
 // app/api/supplier/orders/route.js - COMPLETE FIXED VERSION
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
-import User from '@/models/user';
-import Supplier from '@/models/supplier';
 import RawMaterial from '@/models/rawMaterial';
+import Supplier from '@/models/supplier';
 import mongoose from 'mongoose';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   try {
@@ -184,10 +183,12 @@ export async function GET(request) {
       }
     });
 
-    // Remove the temporary rawMaterialDetails field
+    // Remove the temporary rawMaterialDetails field and anonymize user details
     pipeline.push({
       $project: {
-        rawMaterialDetails: 0
+        rawMaterialDetails: 0,
+        userDetails: 0, // Remove all user details
+        // Optionally, you can add a field like 'vendorName': 'Anonymous' if needed in the response
       }
     });
 
@@ -274,9 +275,23 @@ export async function GET(request) {
 
     console.log('📊 Stats calculated:', stats);
 
+    // Anonymize shipping address name for each order
+    const anonymizedOrders = orders.map(order => {
+      if (order.shippingAddress && order.shippingAddress.name) {
+        return {
+          ...order,
+          shippingAddress: {
+            ...order.shippingAddress,
+            name: 'Unknown'
+          }
+        };
+      }
+      return order;
+    });
+
     return NextResponse.json({
       success: true,
-      orders,
+      orders: anonymizedOrders,
       pagination: {
         currentPage: page,
         totalPages,

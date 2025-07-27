@@ -1,12 +1,11 @@
 // app/api/supplier/analytics/route.js - COMPLETE FIXED VERSION
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
 import RawMaterial from '@/models/rawMaterial';
-import User from '@/models/user';
 import Supplier from '@/models/supplier';
 import mongoose from 'mongoose';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   try {
@@ -388,8 +387,7 @@ export async function GET(request) {
         { $unwind: '$vendorDetails' },
         {
           $project: {
-            vendorName: '$vendorDetails.vendorName',
-            vendorEmail: '$vendorDetails.email',
+            vendorName: { $literal: 'Anonymous' },
             totalSpent: 1,
             orderCount: 1,
             lastOrder: 1

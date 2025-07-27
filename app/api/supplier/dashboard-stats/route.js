@@ -1,12 +1,11 @@
 // app/api/supplier/dashboard-stats/route.js - COMPLETE FIXED VERSION
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
-import Supplier from '@/models/supplier';
-import RawMaterial from '@/models/rawMaterial';
 import Order from '@/models/order';
-import User from '@/models/user';
+import RawMaterial from '@/models/rawMaterial';
+import Supplier from '@/models/supplier';
 import mongoose from 'mongoose';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   try {
@@ -134,7 +133,7 @@ export async function GET(request) {
           $group: {
             _id: '$category',
             count: { $sum: 1 },
-            totalValue: { $sum: { $multiply: ['$price', '$quantity'] } }
+            totalPrice: { $sum: '$price' } // Sum of prices only
           }
         },
         { $sort: { count: -1 } }

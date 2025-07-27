@@ -60,6 +60,7 @@ export default function SupplierDashboardPage() {
             topCategory: "No raw materials yet",
         },
     })
+    const [surplusStats, setSurplusStats] = useState({ count: 0, totalKg: 0, totalSpent: 0, recent: [] });
 
     const fetchDashboardData = async () => {
         try {
@@ -87,6 +88,18 @@ export default function SupplierDashboardPage() {
         }
     }
 
+    // Fetch surplus bought for analysis
+    const fetchSurplusStats = async () => {
+        const res = await fetch('/api/surplus/bought');
+        const data = await res.json();
+        if (data.success) {
+            const count = data.surplus.length;
+            const totalKg = data.surplus.reduce((sum, s) => sum + (s.quantity || 0), 0);
+            const totalSpent = data.surplus.reduce((sum, s) => sum + (s.pricePerKg * s.quantity), 0);
+            setSurplusStats({ count, totalKg, totalSpent, recent: data.surplus.slice(0, 3) });
+        }
+    };
+
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -109,6 +122,8 @@ export default function SupplierDashboardPage() {
 
         checkAuth()
     }, [router])
+
+    useEffect(() => { fetchSurplusStats(); }, []);
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-US", {
@@ -181,7 +196,7 @@ export default function SupplierDashboardPage() {
 
             <main className="flex-grow py-4 sm:py-6 lg:py-8">
                 <div className="container mx-auto px-2 sm:px-4">
-                    {/* Welcome banner */}
+                    {/* Welcome banner - now at the top */}
                     <div className="bg-gradient-to-r from-teal-600 to-teal-800 rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-4 sm:mb-6 lg:mb-8 text-white relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 sm:w-64 sm:h-64 bg-white opacity-5 rounded-full -mt-8 sm:-mt-16 -mr-8 sm:-mr-16"></div>
                         <div className="absolute bottom-0 left-0 w-20 h-20 sm:w-40 sm:h-40 bg-white opacity-5 rounded-full -mb-8 sm:-mb-16 -ml-8 sm:-ml-16"></div>
@@ -216,6 +231,35 @@ export default function SupplierDashboardPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Surplus Analysis Card - now below welcome */}
+                    <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 flex flex-col md:flex-row md:items-center md:justify-between border border-green-100">
+                        <div>
+                            <h2 className="text-2xl font-bold flex items-center mb-2" style={{color: '#347433'}}>
+                                <Package className="mr-2" />
+                                Surplus Analysis
+                            </h2>
+                            <div className="flex flex-wrap gap-6 mb-2 text-lg font-medium">
+                                <div>Total Bought: <span className="font-bold text-gray-900">{surplusStats.count}</span></div>
+                                <div>Total Kg: <span className="font-bold text-gray-900">{surplusStats.totalKg}</span></div>
+                                <div>Total Spent: <span className="font-bold text-green-700">₹{surplusStats.totalSpent}</span></div>
+                            </div>
+                        </div>
+                        <div className="mt-4 md:mt-0 md:ml-8 w-full md:w-auto">
+                            <div className="font-semibold mb-1 text-gray-800">Recent Purchases:</div>
+                            <ul className="divide-y divide-gray-200 bg-gray-50 rounded-lg overflow-hidden">
+                                {surplusStats.recent.map(item => (
+                                    <li key={item._id} className="px-4 py-2 text-sm flex flex-col md:flex-row md:items-center md:gap-2">
+                                        <span className="font-medium text-gray-900">{item.rawMaterialName}</span>
+                                        <span className="text-gray-600">- {item.quantity}kg @ ₹{item.pricePerKg}/kg (₹{item.pricePerKg * item.quantity})</span>
+                                        <span className="text-gray-500">from {item.vendorCode}</span>
+                                    </li>
+                                ))}
+                                {surplusStats.recent.length === 0 && <li className="px-4 py-2 text-gray-400">No recent surplus purchases.</li>}
+                            </ul>
+                        </div>
+                    </div>
+
                     {/* Empty state for dashboard */}
                     {dashboardData.stats.totalOrders === 0 && dashboardData.stats.totalRawMaterials === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 text-gray-500">
@@ -695,7 +739,7 @@ export default function SupplierDashboardPage() {
                                                     <div className="flex justify-between mb-1">
                                                         <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{category._id}</span>
                                                         <span className="text-xs sm:text-sm font-medium text-gray-800 bg-white px-1.5 sm:px-2 rounded">
-                                                            {category.count}
+                                                            {category.count} products
                                                         </span>
                                                     </div>
                                                     <div className="w-full h-2 sm:h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -704,9 +748,9 @@ export default function SupplierDashboardPage() {
                                                             style={{ width: `${percentage}%` }}
                                                         ></div>
                                                     </div>
-                                                    <div className="flex justify-between mt-1 sm:mt-1.5">
+                                                    <div className="flex flex-wrap justify-between mt-1 sm:mt-1.5 gap-2">
                                                         <span className="text-xs text-gray-500 bg-white px-1.5 sm:px-2 py-0.5 rounded">
-                                                            ₹{category.totalValue?.toLocaleString() || "0"}
+                                                            Total Price: ₹{category.totalPrice?.toLocaleString() || "0"}
                                                         </span>
                                                         <span className="text-xs text-teal-600 font-medium">{percentage}%</span>
                                                     </div>
@@ -874,6 +918,9 @@ export default function SupplierDashboardPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Surplus Analysis */}
+                    {/* This section is now moved and restyled above */}
                 </div>
             </main>
         </div>

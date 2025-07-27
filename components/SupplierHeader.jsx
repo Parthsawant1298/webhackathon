@@ -1,7 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, LogOut, Menu, Plus, Settings, User, X, Package } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Package, Plus, User, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -90,9 +90,17 @@ export default function SupplierHeader() {
            Raw Materials
            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
          </Link>
+         <Link href="/supplier/surplus" className="text-gray-700 hover:text-green-700 transition-colors py-2 relative group flex items-center">
+           Surplus
+           <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
+         </Link>
          <Link href="/supplier/add-raw-material" className="text-gray-700 hover:text-green-700 transition-colors py-2 relative group flex items-center">
            <Plus size={16} className="mr-1" />
            Add Material
+           <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
+         </Link>
+         <Link href="/supplier/surplus-bought" className="text-gray-700 hover:text-green-700 transition-colors py-2 relative group flex items-center">
+           Surplus Bought
            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
          </Link>
        </nav>
@@ -148,9 +156,9 @@ export default function SupplierHeader() {
                    <span>My Materials</span>
                  </Link>
                  
-                 <Link href="/supplier/settings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
-                   <Settings size={16} className="mr-2" />
-                   <span>Settings</span>
+                 <Link href="/supplier/surplus" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
+                   <Package size={16} className="mr-2" />
+                   Surplus
                  </Link>
                  
                  <button 
@@ -197,9 +205,15 @@ export default function SupplierHeader() {
                <Package size={16} className="mr-1" />
                Raw Materials
              </Link>
+             <Link href="/supplier/surplus" className="text-gray-700 hover:text-green-700 transition-colors flex items-center" onClick={closeMenu}>
+               Surplus
+             </Link>
              <Link href="/supplier/add-raw-material" className="text-gray-700 hover:text-green-700 transition-colors flex items-center" onClick={closeMenu}>
                <Plus size={16} className="mr-1" />
                Add Material
+             </Link>
+             <Link href="/supplier/surplus-bought" className="text-gray-700 hover:text-green-700 transition-colors flex items-center" onClick={closeMenu}>
+               Surplus Bought
              </Link>
              
              {isLoading ? (
@@ -245,13 +259,20 @@ export default function SupplierHeader() {
                    My Materials
                  </Link>
                  
-                 <Link href="/supplier/settings" 
+                 <Link href="/supplier/surplus" 
                    className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md flex items-center justify-center hover:bg-green-800"
                    style={{backgroundColor: '#347433'}}
                    onClick={closeMenu}
                  >
-                   <Settings size={16} className="mr-2" />
-                   Settings
+                   Surplus
+                 </Link>
+                 
+                 <Link href="/supplier/surplus-bought" 
+                   className="w-full max-w-xs text-white px-4 py-2 rounded-full text-center transition-all duration-300 font-medium shadow-md flex items-center justify-center hover:bg-green-800"
+                   style={{backgroundColor: '#347433'}}
+                   onClick={closeMenu}
+                 >
+                   Surplus Bought
                  </Link>
                  
                  <button 
