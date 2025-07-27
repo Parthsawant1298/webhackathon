@@ -126,6 +126,21 @@ export default function Login() {
               <p className="text-gray-600">Sign in to your account to continue</p>
             </div>
 
+            {/* Test Credentials Note */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-2">Test Credentials:</p>
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <p><strong>User:</strong> sawant.parth15@gmail.com</p>
+                    <p>password : Nalini2004</p>
+                  </div>
+                  <p><strong>Supplier 1:</strong> thanemasala.kharkar@gmail.com / abc@123</p>
+                  <p><strong>Supplier 2:</strong> sitaramagro.flavours@gmail.com / sitaram$78</p>
+                </div>
+              </div>
+            </div>
+
             {/* Show redirect message if present */}
             {message && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-md flex items-start">

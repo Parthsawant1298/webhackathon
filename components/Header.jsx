@@ -148,6 +148,9 @@ export default function Header() {
            Contact Us
            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
          </Link>
+         <Link href="/ai-recommend" className="text-gray-700 hover:text-green-700">
+          AI Recommend
+         </Link>
          <Link href="/vendor/surplus" className="text-gray-700 hover:text-green-700 transition-colors py-2 relative group">
            Surplus
            <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-green-700 transition-all duration-300 group-hover:w-full"></span>
@@ -265,6 +268,9 @@ export default function Header() {
              </Link>
              <Link href="/contact" className="text-gray-700 hover:text-green-700 transition-colors" onClick={closeMenu}>
                Contact Us
+             </Link>
+             <Link href="/ai-recommend" className="text-gray-700 hover:text-green-700">
+              AI Recommend
              </Link>
              <Link href="/vendor/surplus" className="text-gray-700 hover:text-green-700 transition-colors" onClick={closeMenu}>
                Surplus

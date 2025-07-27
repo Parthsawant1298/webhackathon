@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@tailwindcss/typography": "^0.5.16",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
