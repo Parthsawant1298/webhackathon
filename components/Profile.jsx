@@ -1,3 +1,4 @@
+// components/Profile.jsx - FIXED VERSION
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -30,8 +31,8 @@ const ProfilePage = () => {
         }
       } catch (error) {
         console.error('Authentication check failed:', error);
-        // Redirect to login page if not authenticated
-        router.push('/Login');
+        // 🔥 FIX: Redirect to the correct lowercase '/login' path
+        router.push('/login');
       } finally {
         setIsLoading(false);
       }
