@@ -134,8 +134,8 @@ const GalleryComponent = () => {
     return (
       <div className="bg-gray-50 py-8 md:py-12 min-h-[400px] flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mb-4"></div>
-          <p className="text-teal-700 animate-pulse">Loading gallery...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 mb-4" style={{borderTopColor: '#347433', borderBottomColor: '#347433'}}></div>
+          <p className="animate-pulse" style={{color: '#2d5f2d'}}>Loading gallery...</p>
         </div>
       </div>
     );
@@ -148,7 +148,10 @@ const GalleryComponent = () => {
           <p className="text-red-500 text-lg font-semibold mb-4">{error}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="px-6 py-3 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors"
+            className="px-6 py-3 text-white rounded-md transition-colors"
+            style={{backgroundColor: '#347433'}}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
           >
             Try Again
           </button>
@@ -173,10 +176,10 @@ const GalleryComponent = () => {
         {/* Gallery Header */}
         <div className="max-w-3xl mx-auto text-center mb-6">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
-            Our <span className="bg-gradient-to-r from-teal-500 to-teal-700 bg-clip-text text-transparent">Product Gallery</span>
+            Our <span style={{color: '#347433'}}>Raw Material Gallery</span>
           </h2>
           <p className="mt-2 text-lg text-gray-600">
-            Explore our comprehensive range of high-quality cleaning and office supplies
+            Explore our comprehensive range of high-quality raw materials for street vendors
           </p>
         </div>
 
@@ -201,7 +204,7 @@ const GalleryComponent = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <p className="text-white text-sm font-medium truncate">{product.name}</p>
-                  <p className="text-teal-300 text-xs">{product.category || 'Office Supplies'}</p>
+                  <p className="text-xs" style={{color: '#7dd87e'}}>{product.category || 'Raw Materials'}</p>
                 </div>
                 <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                   <ZoomIn className="h-4 w-4 text-white" />
@@ -261,7 +264,7 @@ const GalleryComponent = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold text-gray-900 mb-2">{activeImage.name}</h3>
-                    <p className="text-teal-600 text-sm font-medium mb-4">{activeImage.category || 'Office Supplies'}</p>
+                    <p className="text-sm font-medium mb-4" style={{color: '#347433'}}>{activeImage.category || 'Raw Materials'}</p>
                     
                     {activeImage.description && (
                       <p className="text-gray-600 text-sm mb-4 line-clamp-3">{activeImage.description}</p>
@@ -285,7 +288,10 @@ const GalleryComponent = () => {
                   
                   <button
                     onClick={(e) => navigateToProduct(activeImage._id, e)}
-                    className="flex items-center bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-colors font-medium"
+                    className="flex items-center text-white px-6 py-3 rounded-lg transition-colors font-medium"
+                    style={{backgroundColor: '#347433'}}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
                   >
                     <Info className="h-5 w-5 mr-2" />
                     View Details

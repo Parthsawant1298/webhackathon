@@ -281,10 +281,13 @@ export default function TopRawMaterials() {
   const showToast = (message, type = 'info') => {
     const toast = document.createElement('div');
     toast.className = `fixed bottom-4 right-4 px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg text-white z-50 animate-fade-in-up text-sm sm:text-base ${
-      type === 'success' ? 'bg-teal-600' : 
+      type === 'success' ? '' : 
       type === 'error' ? 'bg-red-600' : 
       'bg-blue-600'
     }`;
+    if (type === 'success') {
+      toast.style.backgroundColor = '#347433';
+    }
     toast.textContent = message;
     document.body.appendChild(toast);
     
@@ -375,7 +378,10 @@ export default function TopRawMaterials() {
           <div className="flex space-x-1 sm:space-x-2 mt-auto">
             <button 
               onClick={(e) => handleAddToCart(rawMaterial._id, e)}
-              className="flex-1 text-xs sm:text-sm py-1.5 sm:py-2 px-1 sm:px-2 rounded-md flex items-center justify-center bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+              className="flex-1 text-xs sm:text-sm py-1.5 sm:py-2 px-1 sm:px-2 rounded-md flex items-center justify-center text-white transition-colors"
+              style={{backgroundColor: '#347433'}}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
             >
               <ShoppingCart size={window.innerWidth < 640 ? 12 : 14} className="mr-0.5 sm:mr-1" />
               <span className="hidden xs:inline sm:hidden lg:inline">Cart</span>
@@ -399,7 +405,7 @@ export default function TopRawMaterials() {
   if (isLoading) {
     return (
       <div className="py-6 sm:py-8 flex justify-center">
-        <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 lg:h-12 lg:w-12 border-t-2 border-b-2 border-teal-500"></div>
+        <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 lg:h-12 lg:w-12 border-t-2 border-b-2" style={{borderTopColor: '#347433', borderBottomColor: '#347433'}}></div>
       </div>
     );
   }
@@ -425,7 +431,7 @@ export default function TopRawMaterials() {
         {/* Title at the top */}
         <div className="mb-4 sm:mb-6 lg:mb-8 text-center">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-            Best <span className="text-teal-600">Seller</span>
+            Best <span style={{color: '#347433'}}>Seller</span>
           </h2>
         </div>
 
@@ -437,7 +443,9 @@ export default function TopRawMaterials() {
               {/* Left arrow */}
               <button 
                 onClick={scrollFirstRowPrev}
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+                className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+                onMouseEnter={(e) => e.target.style.color = '#347433'}
+                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
               >
                 <ChevronLeft size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
               </button>
@@ -445,7 +453,9 @@ export default function TopRawMaterials() {
               {/* Right arrow */}
               <button 
                 onClick={scrollFirstRowNext}
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+                className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+                onMouseEnter={(e) => e.target.style.color = '#347433'}
+                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
               >
                 <ChevronRight size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
               </button>
@@ -473,7 +483,9 @@ export default function TopRawMaterials() {
               {/* Left arrow */}
               <button 
                 onClick={scrollSecondRowPrev}
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+                className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+                onMouseEnter={(e) => e.target.style.color = '#347433'}
+                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
               >
                 <ChevronLeft size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
               </button>
@@ -481,7 +493,9 @@ export default function TopRawMaterials() {
               {/* Right arrow */}
               <button 
                 onClick={scrollSecondRowNext}
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+                className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+                onMouseEnter={(e) => e.target.style.color = '#347433'}
+                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
               >
                 <ChevronRight size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
               </button>

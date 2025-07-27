@@ -241,10 +241,13 @@ export default function NewArrivals() {
   const showToast = (message, type = 'info') => {
     const toast = document.createElement('div');
     toast.className = `fixed bottom-4 right-4 px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg text-white z-50 animate-fade-in-up text-sm sm:text-base ${
-      type === 'success' ? 'bg-teal-600' : 
+      type === 'success' ? '' : 
       type === 'error' ? 'bg-red-600' : 
       'bg-blue-600'
     }`;
+    if (type === 'success') {
+      toast.style.backgroundColor = '#347433';
+    }
     toast.textContent = message;
     document.body.appendChild(toast);
     
@@ -289,7 +292,7 @@ export default function NewArrivals() {
           />
           
           {/* New tag for emphasizing it's a new arrival */}
-          <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-teal-500 text-white text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md">
+          <div className="absolute top-1 left-1 sm:top-2 sm:left-2 text-white text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md" style={{backgroundColor: '#347433'}}>
             NEW
           </div>
           
@@ -340,7 +343,10 @@ export default function NewArrivals() {
           <div className="flex space-x-1 sm:space-x-2 mt-auto">
             <button 
               onClick={(e) => handleAddToCart(rawMaterial._id, e)}
-              className="flex-1 text-xs sm:text-sm py-1.5 sm:py-2 px-1 sm:px-2 rounded-md flex items-center justify-center bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+              className="flex-1 text-xs sm:text-sm py-1.5 sm:py-2 px-1 sm:px-2 rounded-md flex items-center justify-center text-white transition-colors"
+              style={{backgroundColor: '#347433'}}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
             >
               <ShoppingCart size={window.innerWidth < 640 ? 12 : 14} className="mr-0.5 sm:mr-1" />
               <span className="hidden xs:inline sm:hidden lg:inline">Cart</span>
@@ -364,7 +370,7 @@ export default function NewArrivals() {
   if (isLoading) {
     return (
       <div className="py-6 sm:py-8 flex justify-center">
-        <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 lg:h-12 lg:w-12 border-t-2 border-b-2 border-teal-500"></div>
+        <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 lg:h-12 lg:w-12 border-t-2 border-b-2" style={{borderTopColor: '#347433', borderBottomColor: '#347433'}}></div>
       </div>
     );
   }
@@ -384,12 +390,12 @@ export default function NewArrivals() {
   const totalPages = Math.ceil(newArrivals.length / itemsToShow);
 
   return (
-    <div className="py-3 sm:py-4 md:py-6 lg:py-10 bg-gradient-to-br from-teal-50 via-gray-50 to-white">
+    <div className="py-3 sm:py-4 md:py-6 lg:py-10" style={{background: 'linear-gradient(135deg, #f0f9f0 0%, #f9f9f9 50%, #ffffff 100%)'}}>
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 max-w-full sm:max-w-6xl lg:max-w-[1580px]">
         {/* Title at the top */}
         <div className="mb-4 sm:mb-6 lg:mb-8 text-center">
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-            New <span className="text-teal-600">Arrivals</span>
+            New <span style={{color: '#347433'}}>Arrivals</span>
           </h2>
         </div>
         
@@ -398,7 +404,9 @@ export default function NewArrivals() {
           {/* Left arrow - Show on all screen sizes */}
           <button 
             onClick={scrollPrev}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -ml-4 sm:-ml-6 lg:-ml-12"
+            onMouseEnter={(e) => e.target.style.color = '#347433'}
+            onMouseLeave={(e) => e.target.style.color = '#6b7280'}
           >
             <ChevronLeft size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
           </button>
@@ -406,7 +414,9 @@ export default function NewArrivals() {
           {/* Right arrow - Show on all screen sizes */}
           <button 
             onClick={scrollNext}
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-teal-600 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1.5 sm:p-2 lg:p-3 rounded-full bg-white shadow-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-all duration-300 -mr-4 sm:-mr-6 lg:-mr-12"
+            onMouseEnter={(e) => e.target.style.color = '#347433'}
+            onMouseLeave={(e) => e.target.style.color = '#6b7280'}
           >
             <ChevronRight size={window.innerWidth < 640 ? 16 : window.innerWidth < 1024 ? 18 : 20} className="md:w-6 md:h-6" />
           </button>
@@ -430,8 +440,9 @@ export default function NewArrivals() {
             <button
               key={index}
               className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
-                Math.floor(currentIndex / itemsToShow) === index ? 'bg-teal-500' : 'bg-gray-300'
+                Math.floor(currentIndex / itemsToShow) === index ? '' : 'bg-gray-300'
               }`}
+              style={Math.floor(currentIndex / itemsToShow) === index ? {backgroundColor: '#347433'} : {}}
               onClick={() => {
                 if (carouselRef.current) {
                   const cardWidth = getCardWidth();

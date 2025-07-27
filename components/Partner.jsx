@@ -117,16 +117,16 @@ export default function Partner() {
                 </div>
 
                 {/* Enhanced Center Circle */}
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 bg-white rounded-full shadow-lg md:shadow-2xl border-4 md:border-8 border-green-100 flex items-center justify-center z-30 hover:scale-105 transition-transform duration-300">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 bg-gradient-to-br from-green-500 via-green-600 to-green-700 rounded-full flex items-center justify-center shadow-lg md:shadow-xl hover:shadow-xl md:hover:shadow-2xl transition-all duration-300">
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 bg-white rounded-full shadow-lg md:shadow-2xl border-4 md:border-8 flex items-center justify-center z-30 hover:scale-105 transition-transform duration-300" style={{borderColor: '#e8f5e8'}}>
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full flex items-center justify-center shadow-lg md:shadow-xl hover:shadow-xl md:hover:shadow-2xl transition-all duration-300" style={{background: 'linear-gradient(135deg, #347433 0%, #2d5f2d 50%, #1e4a1e 100%)'}}>
                     <span className="text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl tracking-wider drop-shadow-lg">S</span>
                   </div>
                 </div>
 
                 {/* Decorative Elements - Hide on mobile */}
-                <div className="absolute -top-2 -right-2 md:-top-4 md:-right-4 w-4 h-4 md:w-8 md:h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full opacity-60 animate-pulse hidden sm:block"></div>
-                <div className="absolute -bottom-2 -left-2 md:-bottom-4 md:-left-4 w-3 h-3 md:w-6 md:h-6 bg-gradient-to-r from-green-500 to-green-600 rounded-full opacity-60 animate-pulse hidden sm:block"></div>
-                <div className="absolute top-1/4 -left-3 md:-left-6 w-2 h-2 md:w-4 md:h-4 bg-gradient-to-r from-green-300 to-green-400 rounded-full opacity-40 animate-pulse hidden sm:block"></div>
+                <div className="absolute -top-2 -right-2 md:-top-4 md:-right-4 w-4 h-4 md:w-8 md:h-8 rounded-full opacity-60 animate-pulse hidden sm:block" style={{background: 'linear-gradient(to right, #fbbf24, #f97316)'}}></div>
+                <div className="absolute -bottom-2 -left-2 md:-bottom-4 md:-left-4 w-3 h-3 md:w-6 md:h-6 rounded-full opacity-60 animate-pulse hidden sm:block" style={{background: 'linear-gradient(to right, #347433, #2d5f2d)'}}></div>
+                <div className="absolute top-1/4 -left-3 md:-left-6 w-2 h-2 md:w-4 md:h-4 rounded-full opacity-40 animate-pulse hidden sm:block" style={{background: 'linear-gradient(to right, #7dd87e, #5cb85c)'}}></div>
 
               </div>
             </div>

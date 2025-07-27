@@ -79,7 +79,7 @@ export default function WhyChooseUs() {
           className="text-center mb-16"
         >
           <h2 className="text-3xl font-bold text-gray-900">
-            Why Choose <span className="text-green-600">SupplyMind</span>
+            Why Choose <span style={{color: '#347433'}}>SupplyMind</span>
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
             We provide anonymous B2B marketplace solutions with unmatched quality and verified suppliers
@@ -131,14 +131,17 @@ export default function WhyChooseUs() {
                 </div>
               ))}
             </div>
-            <div className="p-6 flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100">
+            <div className="p-6 flex items-center justify-between" style={{background: 'linear-gradient(to right, #f0f9f0, #e8f5e8)'}}>
               <div className="flex items-center space-x-3">
-                <Truck className="w-6 h-6 text-green-600" />
-                <span className="text-sm text-green-700 font-medium">Same Day Delivery Across India</span>
+                <Truck className="w-6 h-6" style={{color: '#347433'}} />
+                <span className="text-sm font-medium" style={{color: '#2d5f2d'}}>Same Day Delivery Across India</span>
               </div>
               <button 
                 onClick={handleCategoryClick}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-sm"
+                className="px-4 py-2 text-white rounded-lg transition-all text-sm"
+                style={{backgroundColor: '#347433'}}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
               >
                 Shop Now
               </button>
@@ -170,7 +173,7 @@ export default function WhyChooseUs() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent flex flex-col justify-end p-6 group-hover:from-black/80 transition-all duration-300">
                 <span className="text-white text-2xl font-bold">{categories[4].name}</span>
                 <p className="text-gray-200 text-sm mt-2 mb-4">{categories[4].description}</p>
-                <button className="px-4 py-2 bg-white text-green-700 rounded-lg hover:bg-green-50 transition-all text-sm w-max">
+                <button className="px-4 py-2 bg-white rounded-lg transition-all text-sm w-max" style={{color: '#2d5f2d'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f9f0'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}>
                   View Products
                 </button>
               </div>
@@ -240,21 +243,22 @@ export default function WhyChooseUs() {
                 </div>
               </div>
             </div>
-            <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 flex items-center justify-between">
+            <div className="p-6 flex items-center justify-between" style={{background: 'linear-gradient(to right, #f0f9f0, #e8f5e8)'}}>
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full bg-white border-2 border-green-100 flex items-center justify-center"
+                    className="w-8 h-8 rounded-full bg-white border-2 flex items-center justify-center"
+                    style={{borderColor: '#e8f5e8'}}
                   >
-                    <Users className="w-4 h-4 text-green-600" />
+                    <Users className="w-4 h-4" style={{color: '#347433'}} />
                   </div>
                 ))}
-                <div className="w-8 h-8 rounded-full bg-green-600 border-2 border-white flex items-center justify-center text-white text-xs">
+                <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs" style={{backgroundColor: '#347433'}}>
                   10K+
                 </div>
               </div>
-              <span className="text-sm text-green-700 font-medium">Trusted by 10K+ Street Vendors</span>
+              <span className="text-sm font-medium" style={{color: '#2d5f2d'}}>Trusted by 10K+ Street Vendors</span>
             </div>
           </motion.div>
 
@@ -270,21 +274,24 @@ export default function WhyChooseUs() {
               </p>
               <div className="space-y-3 mb-6">
                 <div className="flex items-center">
-                  <Shield className="w-5 h-5 mr-2 text-green-600" />
+                  <Shield className="w-5 h-5 mr-2" style={{color: '#347433'}} />
                   <span className="text-sm text-black">100% Anonymous</span>
                 </div>
                 <div className="flex items-center">
-                  <Truck className="w-5 h-5 mr-2 text-green-600" />
+                  <Truck className="w-5 h-5 mr-2" style={{color: '#347433'}} />
                   <span className="text-sm text-black">AI-Powered Matching</span>
                 </div>
                 <div className="flex items-center">
-                  <ThumbsUp className="w-5 h-5 mr-2 text-green-600" />
+                  <ThumbsUp className="w-5 h-5 mr-2" style={{color: '#347433'}} />
                   <span className="text-sm text-black">Surplus Buyback</span>
                 </div>
               </div>
               <button 
                 onClick={handleContactClick}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium w-max"
+                className="px-6 py-3 text-white rounded-lg transition-all font-medium w-max"
+                style={{backgroundColor: '#347433'}}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d5f2d'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#347433'}
               >
                 Contact
               </button>

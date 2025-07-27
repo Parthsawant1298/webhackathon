@@ -113,7 +113,7 @@ const ProductCategories = () => {
       <div className="py-8 sm:py-12 md:py-16 bg-gray-50">
         <div className="container mx-auto px-2 sm:px-4">
           <div className="flex justify-center items-center min-h-[300px] sm:min-h-[400px]">
-            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-teal-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-green-700"></div>
           </div>
         </div>
       </div>
@@ -155,7 +155,10 @@ const ProductCategories = () => {
                 <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 uppercase truncate pr-2">{category.title}</h3>
                 <a
                   href="/rawmaterials"
-                  className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center flex-shrink-0"
+                  className="text-xs sm:text-sm font-medium flex items-center flex-shrink-0 transition-colors"
+                  style={{color: '#347433'}}
+                  onMouseEnter={(e) => e.target.style.color = '#2d5f2d'}
+                  onMouseLeave={(e) => e.target.style.color = '#347433'}
                 >
                   <span className="hidden sm:inline">{category.viewAllText}</span>
                   <span className="sm:hidden">See</span>
@@ -165,7 +168,7 @@ const ProductCategories = () => {
 
               {category.loading ? (
                 <div className="min-h-[150px] sm:min-h-[200px] flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-teal-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-green-700"></div>
                 </div>
               ) : category.products.length === 0 ? (
                 <div className="min-h-[150px] sm:min-h-[200px] flex items-center justify-center">
@@ -179,7 +182,7 @@ const ProductCategories = () => {
                       className="cursor-pointer group"
                       onClick={() => navigateToProduct(product._id)}
                     >
-                      <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-teal-200 transition-all duration-300">
+                      <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-green-200 transition-all duration-300">
                         <img
                           src={
                             product.mainImage ||
@@ -211,7 +214,10 @@ const ProductCategories = () => {
                   <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 uppercase truncate pr-2">{categoryRows[0][4].title}</h3>
                   <a
                     href="/rawmaterials"
-                    className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center flex-shrink-0"
+                    className="text-xs sm:text-sm font-medium flex items-center flex-shrink-0 transition-colors"
+                    style={{color: '#347433'}}
+                    onMouseEnter={(e) => e.target.style.color = '#2d5f2d'}
+                    onMouseLeave={(e) => e.target.style.color = '#347433'}
                   >
                     <span className="hidden sm:inline">{categoryRows[0][4].viewAllText}</span>
                     <span className="sm:hidden">See</span>
@@ -221,7 +227,7 @@ const ProductCategories = () => {
 
                 {categoryRows[0][4].loading ? (
                   <div className="min-h-[150px] sm:min-h-[200px] flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-teal-600"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-green-700"></div>
                   </div>
                 ) : categoryRows[0][4].products.length === 0 ? (
                   <div className="min-h-[150px] sm:min-h-[200px] flex items-center justify-center">
@@ -235,7 +241,7 @@ const ProductCategories = () => {
                         className="cursor-pointer group"
                         onClick={() => navigateToProduct(product._id)}
                       >
-                        <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-teal-200 transition-all duration-300">
+                        <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-green-200 transition-all duration-300">
                           <img
                             src={
                               product.mainImage ||
@@ -261,7 +267,10 @@ const ProductCategories = () => {
                   <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900">Cleaning Chemicals</h3>
                   <a
                     href="/rawmaterials"
-                    className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center flex-shrink-0"
+                    className="text-xs sm:text-sm font-medium flex items-center flex-shrink-0 transition-colors"
+                    style={{color: '#347433'}}
+                    onMouseEnter={(e) => e.target.style.color = '#2d5f2d'}
+                    onMouseLeave={(e) => e.target.style.color = '#347433'}
                   >
                     <span className="hidden sm:inline">See more</span>
                     <span className="sm:hidden">See</span>
@@ -276,7 +285,7 @@ const ProductCategories = () => {
                       className="cursor-pointer group"
                       onClick={() => navigateToProduct(product._id)}
                     >
-                      <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-teal-200 transition-all duration-300">
+                      <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden mb-2 p-1.5 sm:p-2 group-hover:border-green-200 transition-all duration-300">
                         <img
                           src={
                             product.mainImage ||
@@ -302,9 +311,9 @@ const ProductCategories = () => {
                 <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
                   <span className="block sm:inline">Special Offers</span>
                   <span className="block sm:inline"> | </span>
-                  <span className="text-teal-600">Up to {maxDiscount}% off</span>
+                  <span style={{color: '#347433'}}>Up to {maxDiscount}% off</span>
                 </h2>
-                <a href="/rawmaterials" className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center self-start sm:self-auto">
+                <a href="/rawmaterials" className="text-xs sm:text-sm font-medium flex items-center self-start sm:self-auto transition-colors" style={{color: '#347433'}} onMouseEnter={(e) => e.target.style.color = '#2d5f2d'} onMouseLeave={(e) => e.target.style.color = '#347433'}>
                   <span className="hidden sm:inline">See more</span>
                   <span className="sm:hidden">See all</span>
                   <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
@@ -378,7 +387,7 @@ const ProductCategories = () => {
               <span className="block sm:inline"> | </span>
               <span className="text-orange-600">10% off</span>
             </h2>
-            <a href="/rawmaterials" className="text-teal-600 hover:text-teal-700 text-xs sm:text-sm font-medium flex items-center self-start sm:self-auto">
+            <a href="/rawmaterials" className="text-xs sm:text-sm font-medium flex items-center self-start sm:self-auto transition-colors" style={{color: '#347433'}} onMouseEnter={(e) => e.target.style.color = '#2d5f2d'} onMouseLeave={(e) => e.target.style.color = '#347433'}>
               <span className="hidden sm:inline">See more</span>
               <span className="sm:hidden">See all</span>
               <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />

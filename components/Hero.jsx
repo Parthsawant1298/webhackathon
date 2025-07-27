@@ -114,15 +114,15 @@ const SupplyMindHeroBanner = () => {
             {/* Left Content */}
             <div className="lg:col-span-7 space-y-3 sm:space-y-4">
               {/* Animated Badge */}
-              <div className="inline-flex items-center px-4 py-2 bg-green-500/20 backdrop-blur-md border border-green-400/30 rounded-full animate-pulse">
-                <span className="text-green-300 text-xs sm:text-sm font-medium">{slides[currentSlide].badge}</span>
+              <div className="inline-flex items-center px-4 py-2 backdrop-blur-md border rounded-full animate-pulse" style={{backgroundColor: 'rgba(52, 116, 51, 0.2)', borderColor: 'rgba(52, 116, 51, 0.3)'}}>
+                <span className="text-xs sm:text-sm font-medium" style={{color: '#7dd87e'}}>{slides[currentSlide].badge}</span>
               </div>
 
               {/* Hero Title with Animation */}
               <div className="space-y-2">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">
                   <span className="block opacity-90">{slides[currentSlide].title}</span>
-                  <span className="block bg-gradient-to-r from-green-400 via-emerald-400 to-green-500 bg-clip-text text-transparent">
+                  <span className="block text-white">
                     {slides[currentSlide].subtitle}
                   </span>
                 </h1>
@@ -135,14 +135,14 @@ const SupplyMindHeroBanner = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <button className="group px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-semibold text-sm sm:text-base shadow-xl hover:shadow-green-500/30 transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2">
-                  <span>Start Free Trial</span>
+                <button className="group px-4 py-2 sm:px-6 sm:py-3 text-white rounded-xl font-semibold text-sm sm:text-base shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2" style={{background: 'linear-gradient(to right, #347433, #2d5f2d)', boxShadow: '0 10px 25px rgba(52, 116, 51, 0.3)'}}>
+                  <span>Get Started</span>
                   <div className="w-2 h-2 bg-white rounded-full group-hover:animate-ping"></div>
                 </button>
 
-                <button className="group px-4 py-2 sm:px-6 sm:py-3 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 hover:border-green-400/50 flex items-center justify-center space-x-2">
+                <button className="group px-4 py-2 sm:px-6 sm:py-3 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center space-x-2" style={{'--hover-border-color': 'rgba(52, 116, 51, 0.5)'}} onMouseEnter={(e) => e.target.style.borderColor = 'rgba(52, 116, 51, 0.5)'} onMouseLeave={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}>
                   <Play className="h-5 w-5" />
-                  <span>Watch Demo</span>
+                  <span>Learn More</span>
                 </button>
               </div>
             </div>
@@ -150,11 +150,11 @@ const SupplyMindHeroBanner = () => {
             {/* Right Stats Card */}
             <div className="lg:col-span-5 flex justify-end">
               <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 sm:p-6 text-center transform hover:scale-105 transition-all duration-300">
-                <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                <div className="text-2xl sm:text-3xl font-bold mb-2" style={{color: '#7dd87e'}}>
                   {slides[currentSlide].stats.value}
                 </div>
                 <div className="text-gray-300 text-sm sm:text-base">{slides[currentSlide].stats.label}</div>
-                <div className="mt-4 h-1 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full"></div>
+                <div className="mt-4 h-1 rounded-full" style={{background: 'linear-gradient(to right, #7dd87e, #5cb85c)'}}></div>
               </div>
             </div>
           </div>
@@ -186,9 +186,10 @@ const SupplyMindHeroBanner = () => {
             onClick={() => goToSlide(index)}
             className={`h-2 rounded-full transition-all duration-300 ${
               currentSlide === index
-                ? "bg-green-400 w-8 shadow-lg shadow-green-400/50"
+                ? "w-8 shadow-lg"
                 : "bg-white/40 w-3 hover:bg-white/60"
             }`}
+            style={currentSlide === index ? {backgroundColor: '#7dd87e', boxShadow: '0 4px 14px 0 rgba(125, 216, 126, 0.5)'} : {}}
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
@@ -197,19 +198,21 @@ const SupplyMindHeroBanner = () => {
       {/* Animated Progress Bar */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-black/20 z-20">
         <div
-          className="h-full bg-gradient-to-r from-green-400 to-emerald-400 transition-all duration-300 ease-linear shadow-lg shadow-green-400/50"
+          className="h-full transition-all duration-300 ease-linear shadow-lg"
           style={{
             width: `${((currentSlide + 1) / slides.length) * 100}%`,
+            background: 'linear-gradient(to right, #7dd87e, #5cb85c)',
+            boxShadow: '0 4px 14px 0 rgba(125, 216, 126, 0.5)'
           }}
         />
       </div>
 
       {/* Floating Elements */}
       <div className="absolute top-20 right-8 z-10 hidden lg:block">
-        <div className="w-20 h-20 bg-green-400/20 rounded-full animate-pulse"></div>
+        <div className="w-20 h-20 rounded-full animate-pulse" style={{backgroundColor: 'rgba(52, 116, 51, 0.2)'}}></div>
       </div>
       <div className="absolute bottom-32 left-8 z-10 hidden lg:block">
-        <div className="w-12 h-12 bg-emerald-400/20 rounded-full animate-bounce"></div>
+        <div className="w-12 h-12 rounded-full animate-bounce" style={{backgroundColor: 'rgba(125, 216, 126, 0.2)'}}></div>
       </div>
     </div>
   )

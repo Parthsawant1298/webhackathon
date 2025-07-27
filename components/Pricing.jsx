@@ -91,7 +91,7 @@ export default function PricingSection() {
   ]
 
   return (
-    <div className="py-16 bg-gradient-to-b from-white to-green-50">
+    <div className="py-16" style={{background: 'linear-gradient(to bottom, #ffffff 0%, #f0f9f0 100%)'}}>
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -101,7 +101,7 @@ export default function PricingSection() {
           className="text-center mb-12"
         >
           <h2 className="text-3xl font-bold text-gray-900">
-            Simple <span className="text-green-600">Pricing Plans</span>
+            Simple <span style={{color: '#347433'}}>Pricing Plans</span>
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
             Choose the perfect plan for your street food business needs
@@ -113,19 +113,21 @@ export default function PricingSection() {
           <div className="bg-gray-100 p-1 rounded-full inline-flex">
             <button
               className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                billingCycle === "monthly" ? "bg-white text-green-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                billingCycle === "monthly" ? "bg-white shadow-sm" : "text-gray-600 hover:text-gray-900"
               }`}
+              style={billingCycle === "monthly" ? {color: '#347433'} : {}}
               onClick={() => setBillingCycle("monthly")}
             >
               Monthly
             </button>
             <button
               className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                billingCycle === "yearly" ? "bg-white text-green-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                billingCycle === "yearly" ? "bg-white shadow-sm" : "text-gray-600 hover:text-gray-900"
               }`}
+              style={billingCycle === "yearly" ? {color: '#347433'} : {}}
               onClick={() => setBillingCycle("yearly")}
             >
-              Yearly <span className="text-xs text-green-600 font-bold">Save 20%</span>
+              Yearly <span className="text-xs font-bold" style={{color: '#347433'}}>Save 20%</span>
             </button>
           </div>
         </div>
@@ -165,9 +167,11 @@ export default function PricingSection() {
                 <button
                   className={`w-full py-3 px-4 rounded-lg font-medium text-center mb-6 flex items-center justify-center ${
                     plan.popular
-                      ? "bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800"
-                      : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                      ? "text-white" : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                   } transition-all duration-300`}
+                  style={plan.popular ? {background: 'linear-gradient(to right, #347433, #2d5f2d)'} : {}}
+                  onMouseEnter={plan.popular ? (e) => e.target.style.background = 'linear-gradient(to right, #2d5f2d, #1e4a1e)' : undefined}
+                  onMouseLeave={plan.popular ? (e) => e.target.style.background = 'linear-gradient(to right, #347433, #2d5f2d)' : undefined}
                 >
                   {plan.cta}
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -176,7 +180,7 @@ export default function PricingSection() {
                 <div className="space-y-3">
                   {plan.features.map((feature, i) => (
                     <div key={i} className="flex items-start">
-                      <Check className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
+                      <Check className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" style={{color: '#347433'}} />
                       <span className="text-gray-700">{feature}</span>
                     </div>
                   ))}

@@ -51,7 +51,8 @@ const StatsComponent = () => {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-8 w-8 text-green-600"
+          className="h-8 w-8"
+          style={{color: '#347433'}}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -72,7 +73,8 @@ const StatsComponent = () => {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-8 w-8 text-green-600"
+          className="h-8 w-8"
+          style={{color: '#347433'}}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -93,7 +95,8 @@ const StatsComponent = () => {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-8 w-8 text-green-600"
+          className="h-8 w-8"
+          style={{color: '#347433'}}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -114,7 +117,8 @@ const StatsComponent = () => {
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-8 w-8 text-green-600"
+          className="h-8 w-8"
+          style={{color: '#347433'}}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -167,7 +171,7 @@ const StatsComponent = () => {
   }
 
   return (
-    <div className="w-full py-16 bg-gradient-to-b from-white to-green-50">
+    <div className="w-full py-16" style={{background: 'linear-gradient(to bottom, #ffffff 0%, #f0f9f0 100%)'}}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.h2
           initial={{ opacity: 0, y: -20 }}
@@ -176,7 +180,7 @@ const StatsComponent = () => {
           transition={{ duration: 0.7 }}
           className="text-3xl font-bold text-center mb-12 text-gray-800"
         >
-          Trusted by <span className="text-green-600">Street Vendors Across India</span>
+          Trusted by <span style={{color: '#347433'}}>Street Vendors Across India</span>
         </motion.h2>
 
         <motion.div
@@ -194,13 +198,14 @@ const StatsComponent = () => {
               className="bg-white rounded-2xl shadow-lg overflow-hidden group"
             >
               <div className="p-6 flex flex-col items-center text-center relative">
-                <div className="absolute -top-10 left-0 w-full h-32 bg-gradient-to-br from-green-400/10 to-green-200/5 rounded-full transform -translate-x-1/2 scale-150 opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                <div className="absolute -top-10 left-0 w-full h-32 rounded-full transform -translate-x-1/2 scale-150 opacity-0 group-hover:opacity-100 transition-all duration-700" style={{background: 'radial-gradient(circle, rgba(52, 116, 51, 0.1) 0%, rgba(125, 216, 126, 0.05) 100%)'}}></div>
 
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
-                  className="mb-4 bg-green-50 p-3 rounded-full"
+                  className="mb-4 p-3 rounded-full"
+                  style={{backgroundColor: '#f0f9f0'}}
                 >
                   {stat.icon}
                 </motion.div>
@@ -212,7 +217,7 @@ const StatsComponent = () => {
                   transition={{ delay: 0.5 + index * 0.1, duration: 0.7 }}
                 >
                   <span className="text-4xl font-bold text-gray-800">{stat.value}</span>
-                  <span className="text-2xl font-medium text-green-600">{stat.suffix}</span>
+                  <span className="text-2xl font-medium" style={{color: '#347433'}}>{stat.suffix}</span>
                 </motion.div>
 
                 <motion.p
@@ -228,7 +233,8 @@ const StatsComponent = () => {
                   initial={{ width: 0 }}
                   animate={{ width: "40%" }}
                   transition={{ delay: 0.9 + index * 0.1, duration: 1 }}
-                  className="h-1 bg-gradient-to-r from-green-400 to-green-600 rounded-full mt-4"
+                  className="h-1 rounded-full mt-4"
+                  style={{background: 'linear-gradient(to right, #7dd87e, #347433)'}}
                 />
               </div>
             </motion.div>

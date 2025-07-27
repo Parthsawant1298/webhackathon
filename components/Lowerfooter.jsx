@@ -101,7 +101,10 @@ const SupplyMindBanner = () => {
             </h3>
             <a 
               href={banners[currentSlide].buttonLink}
-              className="inline-block px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all duration-300 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="inline-block px-8 py-3 text-white transition-all duration-300 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+              style={{background: 'linear-gradient(to right, #347433, #2d5f2d)'}}
+              onMouseEnter={(e) => e.target.style.background = 'linear-gradient(to right, #2d5f2d, #1e4a1e)'}
+              onMouseLeave={(e) => e.target.style.background = 'linear-gradient(to right, #347433, #2d5f2d)'}
             >
               {banners[currentSlide].buttonText}
             </a>
@@ -111,7 +114,10 @@ const SupplyMindBanner = () => {
         {/* Navigation arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 text-white hover:text-yellow-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 text-white transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+          style={{'--hover-text-color': '#7dd87e'}}
+          onMouseEnter={(e) => e.target.style.color = '#7dd87e'}
+          onMouseLeave={(e) => e.target.style.color = '#ffffff'}
           aria-label="Previous slide"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -121,7 +127,10 @@ const SupplyMindBanner = () => {
 
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 text-white hover:text-yellow-300 transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 text-white transition-colors bg-black/20 hover:bg-black/40 rounded-full p-2"
+          style={{'--hover-text-color': '#7dd87e'}}
+          onMouseEnter={(e) => e.target.style.color = '#7dd87e'}
+          onMouseLeave={(e) => e.target.style.color = '#ffffff'}
           aria-label="Next slide"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,9 +146,9 @@ const SupplyMindBanner = () => {
               onClick={() => goToSlide(index)}
               className={`rounded-full transition-all duration-300 ${
                 currentSlide === index 
-                  ? "w-8 h-2 bg-gradient-to-r from-yellow-400 to-orange-500" 
-                  : "w-2 h-2 bg-white bg-opacity-70 hover:bg-opacity-90"
+                  ? "w-8 h-2" : "w-2 h-2 bg-white bg-opacity-70 hover:bg-opacity-90"
               }`}
+              style={currentSlide === index ? {background: 'linear-gradient(to right, #7dd87e, #f97316)'} : {}}
               aria-label={`Go to slide ${index + 1}`}
             />
           ))}

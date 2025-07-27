@@ -5,8 +5,7 @@ import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import Footer from './Footer';
-import Header from './Header';
+
 
 export default function Login() {
   const router = useRouter();
@@ -112,7 +111,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-gray-50 to-white flex flex-col">
-      <Header />
       
       <div className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
@@ -294,7 +292,7 @@ export default function Login() {
         </div>
       </div>
 
-      <Footer />
+      
     </div>
   );
 }
