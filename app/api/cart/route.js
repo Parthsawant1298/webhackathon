@@ -9,7 +9,6 @@ export async function POST(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies - FIXED: Use userId cookie
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -22,7 +21,6 @@ export async function POST(request) {
 
     const { rawMaterialId, quantity } = await request.json();
 
-    // Validation
     if (!rawMaterialId) {
       return NextResponse.json(
         { success: false, error: 'Raw Material ID is required' },
@@ -37,7 +35,6 @@ export async function POST(request) {
       );
     }
 
-    // Find raw material
     const rawMaterial = await RawMaterial.findById(rawMaterialId);
     
     if (!rawMaterial) {
@@ -47,7 +44,6 @@ export async function POST(request) {
       );
     }
 
-    // Check availability
     if (rawMaterial.quantity < quantity) {
       return NextResponse.json(
         { success: false, error: 'Insufficient quantity available' },
@@ -55,26 +51,22 @@ export async function POST(request) {
       );
     }
 
-    // Find or create cart for user - FIXED: Use correct field name 'user'
     let cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
       cart = new Cart({
-        user: userId, // FIXED: Use 'user' not 'userId'
+        user: userId,
         items: []
       });
     }
 
-    // Check if item already exists in cart - FIXED: Use correct field name 'rawMaterial'
     const existingItemIndex = cart.items.findIndex(cartItem => 
       cartItem.rawMaterial && cartItem.rawMaterial.toString() === rawMaterialId
     );
 
     if (existingItemIndex > -1) {
-      // Update existing item quantity
       const newQuantity = cart.items[existingItemIndex].quantity + quantity;
       
-      // Check if new quantity exceeds available stock
       if (newQuantity > rawMaterial.quantity) {
         return NextResponse.json(
           { success: false, error: 'Cannot add more items than available in stock' },
@@ -84,9 +76,8 @@ export async function POST(request) {
       
       cart.items[existingItemIndex].quantity = newQuantity;
     } else {
-      // Add new item to cart - FIXED: Use correct field name 'rawMaterial'
       cart.items.push({
-        rawMaterial: rawMaterialId, // FIXED: Use 'rawMaterial' not 'rawMaterialId'
+        rawMaterial: rawMaterialId,
         quantity
       });
     }
@@ -115,7 +106,6 @@ export async function GET(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies - FIXED: Use userId cookie
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -126,7 +116,6 @@ export async function GET(request) {
       );
     }
 
-    // Find cart and populate items - FIXED: Use correct field names
     const cart = await Cart.findOne({ user: userId })
       .populate('items.rawMaterial', 'name price mainImage quantity')
       .lean();
@@ -142,10 +131,8 @@ export async function GET(request) {
       });
     }
 
-    // Filter out items where the referenced raw material no longer exists
     const validItems = cart.items.filter(item => item.rawMaterial !== null);
 
-    // Calculate totals
     let totalPrice = 0;
     validItems.forEach(item => {
       if (item.rawMaterial && item.rawMaterial.price) {
@@ -153,7 +140,6 @@ export async function GET(request) {
       }
     });
 
-    // Add availability information to each item
     const itemsWithAvailability = validItems.map(item => {
       if (!item.rawMaterial) return item;
       
@@ -191,7 +177,6 @@ export async function PUT(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -211,7 +196,6 @@ export async function PUT(request) {
       );
     }
 
-    // Find cart - FIXED: Use correct field name
     const cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
@@ -221,7 +205,6 @@ export async function PUT(request) {
       );
     }
 
-    // Find the item in the cart - FIXED: Use correct field name
     const itemIndex = cart.items.findIndex(item => 
       item.rawMaterial.toString() === rawMaterialId
     );
@@ -233,7 +216,6 @@ export async function PUT(request) {
       );
     }
 
-    // Check availability
     const rawMaterial = await RawMaterial.findById(rawMaterialId);
     if (!rawMaterial || quantity > rawMaterial.quantity) {
       return NextResponse.json(
@@ -242,7 +224,6 @@ export async function PUT(request) {
       );
     }
 
-    // Update quantity
     cart.items[itemIndex].quantity = quantity;
     await cart.save();
 
@@ -268,7 +249,6 @@ export async function DELETE(request) {
   try {
     await connectDB();
     
-    // Get user session from cookies
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -288,7 +268,6 @@ export async function DELETE(request) {
       );
     }
 
-    // Find cart - FIXED: Use correct field name
     const cart = await Cart.findOne({ user: userId });
     
     if (!cart) {
@@ -298,7 +277,6 @@ export async function DELETE(request) {
       );
     }
 
-    // Remove item from cart - FIXED: Use correct field name
     cart.items = cart.items.filter(item => 
       item.rawMaterial.toString() !== rawMaterialId
     );

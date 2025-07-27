@@ -10,7 +10,6 @@ import mongoose from 'mongoose';
 
 export async function GET(request) {
   try {
-    // Check supplier authentication
     const cookieStore = await cookies();
     const supplierSessionCookie = cookieStore.get('supplier-session')?.value;
     
@@ -23,17 +22,14 @@ export async function GET(request) {
 
     await connectDB();
     
-    // Verify supplier exists
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
 
-    // Get all raw material IDs for the current supplier
     const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id').lean();
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
 
-    // Get query parameters for filtering and pagination
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page')) || 1;
     const limit = parseInt(url.searchParams.get('limit')) || 20;
@@ -45,7 +41,6 @@ export async function GET(request) {
     const sortBy = url.searchParams.get('sortBy') || 'createdAt';
     const sortOrder = url.searchParams.get('sortOrder') || 'desc';
 
-    // Build filter query, ensuring orders contain supplier's materials
     const filter = {
       'items.rawMaterial': { $in: supplierRawMaterialIds }
     };
@@ -64,7 +59,6 @@ export async function GET(request) {
       if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
 
-    // For search, we'll need to search in user (vendor) details
     let userFilter = {};
     if (search) {
       userFilter = {
@@ -75,14 +69,10 @@ export async function GET(request) {
       };
     }
 
-    // Calculate pagination
     const skip = (page - 1) * limit;
 
-    // Build aggregation pipeline
     const pipeline = [
-      // Initial match for orders containing the supplier's raw materials
       { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
-      // Lookup user (vendor) details
       {
         $lookup: {
           from: 'users',
@@ -94,7 +84,6 @@ export async function GET(request) {
       {
         $unwind: '$userDetails'
       },
-      // Lookup raw material details for items
       {
         $lookup: {
           from: 'rawmaterials',
@@ -103,7 +92,6 @@ export async function GET(request) {
           as: 'rawMaterialDetails'
         }
       },
-      // Add raw material details to items
       {
         $addFields: {
           items: {
@@ -132,18 +120,15 @@ export async function GET(request) {
           }
         }
       },
-      // Apply filters
       {
         $match: {
           ...filter,
           ...(search ? userFilter : {})
         }
       },
-      // Sort
       {
         $sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
       },
-      // Add pagination info
       {
         $facet: {
           orders: [
@@ -162,7 +147,6 @@ export async function GET(request) {
     const totalCount = result.totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get order statistics for the supplier
     const stats = await Order.aggregate([
       { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
       {
@@ -225,10 +209,8 @@ export async function GET(request) {
   }
 }
 
-// Update order status
 export async function PUT(request) {
   try {
-    // Check supplier authentication
     const cookieStore = await cookies();
     const supplierSessionCookie = cookieStore.get('supplier-session')?.value;
     
@@ -241,7 +223,6 @@ export async function PUT(request) {
 
     await connectDB();
     
-    // Verify supplier exists
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
@@ -253,7 +234,6 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    // Validate status values
     const allowedStatuses = ['processing', 'delivered', 'payment failed'];
     const allowedPaymentStatuses = ['pending', 'completed', 'failed', 'refunded'];
 
@@ -265,7 +245,6 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Invalid payment status' }, { status: 400 });
     }
 
-    // Find and update the order
     const updateData = {};
     if (status) updateData.status = status;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;

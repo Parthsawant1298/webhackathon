@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
-import RawMaterial from '@/models/rawMaterial'; // ✅ ADD THIS IMPORT
+import RawMaterial from '@/models/rawMaterial';
 
 export async function GET(request, { params }) {
   try {
@@ -19,7 +19,6 @@ export async function GET(request, { params }) {
     
     await connectDB();
     
-    // Find the specific order for the user
     const order = await Order.findOne({ 
       _id: (await params).id, 
       user: userId 

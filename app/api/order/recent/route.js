@@ -1,7 +1,7 @@
 // app/api/order/recent/route.js - FIXED VERSION
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
-import RawMaterial from '@/models/rawMaterial'; // ✅ ADD THIS IMPORT
+import RawMaterial from '@/models/rawMaterial';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
@@ -19,7 +19,6 @@ export async function GET(request) {
     
     await connectDB();
     
-    // Find the most recent order for the user
     const order = await Order.findOne({ user: userId })
       .sort({ createdAt: -1 })
       .populate('items.rawMaterial')

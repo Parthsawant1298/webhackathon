@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/order';
-import RawMaterial from '@/models/rawMaterial'; // ✅ ADD THIS IMPORT
+import RawMaterial from '@/models/rawMaterial';
 
 export async function GET(request) {
   try {
@@ -19,7 +19,6 @@ export async function GET(request) {
     
     await connectDB();
     
-    // Find all orders for the user, sorted by most recent first
     const orders = await Order.find({ user: userId })
       .sort({ createdAt: -1 })
       .populate({

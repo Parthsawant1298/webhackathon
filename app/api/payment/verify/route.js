@@ -10,7 +10,6 @@ import Order from '@/models/order';
 import RawMaterial from '@/models/rawMaterial';
 import User from '@/models/user';
 
-// Verify Razorpay signature
 function verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
   if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
     console.error('Missing signature verification parameters');
@@ -38,9 +37,8 @@ function verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySig
   }
 }
 
-// Create email transporter with retry logic
 function createEmailTransporter() {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -49,21 +47,18 @@ function createEmailTransporter() {
     tls: {
       rejectUnauthorized: false
     },
-    // Add retry and timeout settings
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
-    rateLimit: 14 // messages per second
+    rateLimit: 14
   });
 }
 
-// Send email receipt with retry logic
 async function sendReceiptEmail(order, user, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const transporter = createEmailTransporter();
 
-      // Format order items for email
       const itemsList = order.items.map(item => {
         const rawMaterial = item.rawMaterial;
         return `
@@ -82,7 +77,6 @@ async function sendReceiptEmail(order, user, maxRetries = 3) {
         day: 'numeric'
       });
 
-      // Create the email HTML
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee;">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -154,14 +148,12 @@ async function sendReceiptEmail(order, user, maxRetries = 3) {
         return false;
       }
       
-      // Wait before retry (exponential backoff)
       await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
     }
   }
   return false;
 }
 
-// Rollback function to restore stock in case of failure
 async function rollbackStockChanges(orderItems, session) {
   try {
     console.log('🔄 Rolling back stock changes...');
@@ -170,7 +162,7 @@ async function rollbackStockChanges(orderItems, session) {
       await RawMaterial.findByIdAndUpdate(
         item.rawMaterial._id,
         { 
-          $inc: { quantity: item.quantity } // Restore the quantity
+          $inc: { quantity: item.quantity }
         },
         { session }
       );
@@ -180,12 +172,9 @@ async function rollbackStockChanges(orderItems, session) {
     console.log('✅ Stock rollback completed');
   } catch (rollbackError) {
     console.error('❌ Critical: Stock rollback failed:', rollbackError);
-    // This is a critical error - log it for manual intervention
-    // In production, you might want to send an alert to administrators
   }
 }
 
-// Mark order as failed and restore stock
 async function markOrderAsFailed(orderId, reason, session) {
   try {
     await Order.findByIdAndUpdate(
@@ -228,7 +217,6 @@ export async function POST(request) {
       razorpaySignature 
     } = await request.json();
     
-    // Verify Razorpay signature first
     const isValidSignature = verifyRazorpaySignature(
       razorpayOrderId, 
       razorpayPaymentId, 
@@ -243,7 +231,6 @@ export async function POST(request) {
       );
     }
     
-    // Find the order
     const order = await Order.findOne({ 
       'paymentInfo.razorpayOrderId': razorpayOrderId,
       user: userId
@@ -257,7 +244,6 @@ export async function POST(request) {
       );
     }
     
-    // Check if order is already processed
     if (order.status === 'processing' && order.paymentStatus === 'completed') {
       console.log('Order already processed, returning success');
       return NextResponse.json({
@@ -274,36 +260,32 @@ export async function POST(request) {
     console.log('Processing payment verification for order:', order._id);
     console.log('Order items:', order.items.length);
     
-    // Start atomic transaction for stock updates and order processing
     const transactionResult = await session.withTransaction(async () => {
       console.log('Starting atomic transaction for payment processing...');
       
       try {
-        // Step 1: Validate and update stock atomically
         const stockUpdates = [];
         
         for (const item of order.items) {
           console.log(`Validating stock for: ${item.rawMaterial.name}, ordered: ${item.quantity}`);
           
-          // Use findOneAndUpdate with stock check for atomic operation
           const updatedMaterial = await RawMaterial.findOneAndUpdate(
             { 
               _id: item.rawMaterial._id,
-              quantity: { $gte: item.quantity }, // Ensure sufficient stock
+              quantity: { $gte: item.quantity },
               isActive: true
             },
             { 
-              $inc: { quantity: -item.quantity } // Atomic decrement
+              $inc: { quantity: -item.quantity }
             },
             { 
               new: true,
-              session, // Use transaction session
-              runValidators: false // Allow quantity to reach 0
+              session,
+              runValidators: false
             }
           );
           
           if (!updatedMaterial) {
-            // Stock insufficient or material not found
             const currentMaterial = await RawMaterial.findById(item.rawMaterial._id, null, { session });
             
             if (!currentMaterial) {
@@ -327,7 +309,6 @@ export async function POST(request) {
           console.log(`✅ Stock updated for ${item.rawMaterial.name}: ${updatedMaterial.quantity} remaining`);
         }
         
-        // Step 2: Update order status within the same transaction
         const updatedOrder = await Order.findByIdAndUpdate(
           order._id,
           {
@@ -355,7 +336,6 @@ export async function POST(request) {
       } catch (transactionError) {
         console.error('❌ Transaction failed:', transactionError.message);
         
-        // Mark order as failed within the transaction
         await markOrderAsFailed(order._id, transactionError.message, session);
         
         throw transactionError;
@@ -363,17 +343,15 @@ export async function POST(request) {
     }, {
       readConcern: { level: 'majority' },
       writeConcern: { w: 'majority', j: true },
-      maxCommitTimeMS: 30000 // 30 second timeout
+      maxCommitTimeMS: 30000
     });
     
     console.log('✅ Payment transaction completed successfully');
     
-    // Step 3: Post-transaction operations (these don't need to be atomic)
     let emailSent = false;
     let user = null;
     
     try {
-      // Get user data for email
       user = await User.findById(userId);
       
       if (user && user.email) {
@@ -383,11 +361,9 @@ export async function POST(request) {
       }
     } catch (emailError) {
       console.error('Email sending failed (non-critical):', emailError);
-      // Don't fail the entire operation if email fails
     }
     
     try {
-      // Clear the user's cart
       await Cart.findOneAndUpdate(
         { user: userId },
         { $set: { items: [] } }
@@ -395,10 +371,8 @@ export async function POST(request) {
       console.log('✅ Cart cleared');
     } catch (cartError) {
       console.error('Cart clearing failed (non-critical):', cartError);
-      // Don't fail the entire operation if cart clearing fails
     }
     
-    // Return success response
     return NextResponse.json({
       success: true,
       message: 'Payment verified and order processed successfully',
@@ -415,7 +389,6 @@ export async function POST(request) {
   } catch (error) {
     console.error('❌ Payment verification error:', error);
     
-    // Handle specific error types
     if (error.message.includes('Insufficient stock') || 
         error.message.includes('no longer exists') || 
         error.message.includes('no longer active')) {
@@ -449,7 +422,6 @@ export async function POST(request) {
       { status: 500 }
     );
   } finally {
-    // Always end the session
     await session.endSession();
   }
 }

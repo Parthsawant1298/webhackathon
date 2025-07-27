@@ -13,7 +13,6 @@ export async function POST(request, { params }) {
     
     const { id } = await params;
     
-    // Get user ID from cookie
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -29,7 +28,6 @@ export async function POST(request, { params }) {
     const { rating, title, comment } = await request.json();
     console.log('POST Review - Data received:', { rating, title, comment });
 
-    // Validation
     if (!rating || !comment) {
       return NextResponse.json(
         { success: false, error: 'Rating and comment are required' },
@@ -51,7 +49,6 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Get user details
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json(
@@ -60,7 +57,6 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Find the raw material
     const rawMaterial = await RawMaterial.findById(id).populate('createdBy');
     
     if (!rawMaterial) {
@@ -70,7 +66,6 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user has already reviewed this material
     const existingReview = await Review.findOne({
       userId: user._id,
       rawMaterialId: id,
@@ -84,7 +79,6 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Create new review
     const newReview = new Review({
       userId: user._id,
       userName: user.vendorName,
@@ -114,7 +108,6 @@ export async function POST(request, { params }) {
       throw saveError;
     }
 
-    // Update raw material ratings
     await updateRawMaterialRatings(id);
 
     return NextResponse.json({
@@ -155,7 +148,6 @@ export async function GET(request, { params }) {
     console.log('GET Reviews - Raw Material ID:', id);
     await connectDB();
     
-    // Get reviews from Review collection
     const reviews = await Review.find({ 
       rawMaterialId: id, 
       isActive: true 
@@ -166,7 +158,6 @@ export async function GET(request, { params }) {
 
     console.log('GET Reviews - Found reviews:', reviews.length);
 
-    // Format reviews for frontend
     const formattedReviews = reviews.map(review => ({
       _id: review._id,
       userName: review.userName,
@@ -200,7 +191,6 @@ export async function PUT(request, { params }) {
     
     const { id } = await params;
     
-    // Get user ID from cookie
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     
@@ -220,7 +210,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Validation
     if (rating && (rating < 1 || rating > 5)) {
       return NextResponse.json(
         { success: false, error: 'Rating must be between 1 and 5' },
@@ -235,7 +224,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Find the review
     const review = await Review.findById(reviewId);
     
     if (!review) {
@@ -245,7 +233,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Check if user owns this review
     if (review.userId.toString() !== userId) {
       return NextResponse.json(
         { success: false, error: 'You can only edit your own reviews' },
@@ -253,17 +240,14 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Get user details for profile picture
     const user = await User.findById(userId);
 
-    // Update review
     if (rating) review.rating = parseInt(rating);
     if (title !== undefined) review.title = title.trim();
     if (comment) review.comment = comment.trim();
 
     await review.save();
 
-    // Update raw material ratings
     await updateRawMaterialRatings(id);
 
     return NextResponse.json({
@@ -297,7 +281,6 @@ export async function DELETE(request, { params }) {
     
     const { id } = await params;
     
-    // Get user ID from cookie
     const cookieStore = await cookies();
     const userId = cookieStore.get('userId')?.value;
     console.log('DELETE Review - User ID:', userId);
@@ -320,7 +303,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Find the review
     const review = await Review.findById(reviewId);
     console.log('DELETE Review - Found review:', review ? 'Yes' : 'No');
     
@@ -331,7 +313,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Check if user owns this review
     if (review.userId.toString() !== userId) {
       console.log('DELETE Review - User mismatch:', review.userId.toString(), 'vs', userId);
       return NextResponse.json(
@@ -340,13 +321,11 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Soft delete - mark as inactive
     console.log('DELETE Review - Before soft delete, isActive:', review.isActive);
     review.isActive = false;
     await review.save();
     console.log('DELETE Review - After soft delete, isActive:', review.isActive);
 
-    // Update raw material ratings
     await updateRawMaterialRatings(id);
 
     return NextResponse.json({
@@ -363,10 +342,8 @@ export async function DELETE(request, { params }) {
   }
 }
 
-// Helper function to update raw material ratings
 async function updateRawMaterialRatings(rawMaterialId) {
   try {
-    // Get all active reviews for this raw material
     const allReviews = await Review.find({ 
       rawMaterialId: rawMaterialId, 
       isActive: true 
@@ -384,7 +361,6 @@ async function updateRawMaterialRatings(rawMaterialId) {
     
     console.log(`Updating material ${rawMaterialId} - avgRating: ${avgRating}, numReviews: ${numReviews}`);
     
-    // Update the raw material
     await RawMaterial.findByIdAndUpdate(rawMaterialId, {
       ratings: avgRating,
       numReviews: numReviews

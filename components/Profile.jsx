@@ -15,7 +15,6 @@ const ProfilePage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/user');
@@ -31,7 +30,6 @@ const ProfilePage = () => {
         }
       } catch (error) {
         console.error('Authentication check failed:', error);
-        // 🔥 FIX: Redirect to the correct lowercase '/login' path
         router.push('/login');
       } finally {
         setIsLoading(false);
@@ -44,22 +42,19 @@ const ProfilePage = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('Image size should not exceed 5MB');
         return;
       }
       
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         setError('Only image files are allowed');
         return;
       }
       
-      setError(''); // Clear previous errors
+      setError('');
       setProfileImage(file);
       
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -90,16 +85,13 @@ const ProfilePage = () => {
       
       const data = await response.json();
       
-      // Update user data with new profile picture
       setUser(prev => ({
         ...prev,
         profilePicture: data.profilePicture
       }));
       
-      // Also update image preview with the Cloudinary URL
       setImagePreview(data.profilePicture);
       
-      // Clear the selected file
       setProfileImage(null);
       
       alert('Profile picture updated successfully!');
@@ -150,7 +142,6 @@ const ProfilePage = () => {
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Vendor Profile</h1>
               
               <div className="flex flex-col md:flex-row gap-8">
-                {/* Profile Picture Section */}
                 <div className="flex flex-col items-center">
                   <div className="w-36 h-36 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border-4 border-green-500">
                     {imagePreview ? (
@@ -193,7 +184,6 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 
-                {/* User Info Section */}
                 <div className="flex-grow">
                   <div className="space-y-4">
                     <div>
