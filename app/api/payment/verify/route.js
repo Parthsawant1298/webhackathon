@@ -1,4 +1,4 @@
-// app/api/payment/verify/route.js - FIXED VERSION WITH ATOMIC TRANSACTIONS
+// app/api/payment/verify/route.js - FIXED VERSION with proper error handling and rollback
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
@@ -38,7 +38,7 @@ function verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySig
   }
 }
 
-// Create email transporter
+// Create email transporter with retry logic
 function createEmailTransporter() {
   return nodemailer.createTransporter({
     service: 'gmail',
@@ -48,106 +48,165 @@ function createEmailTransporter() {
     },
     tls: {
       rejectUnauthorized: false
-    }
+    },
+    // Add retry and timeout settings
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    rateLimit: 14 // messages per second
   });
 }
 
-// Send email receipt to customer
-async function sendReceiptEmail(order, user) {
-  try {
-    const transporter = createEmailTransporter();
+// Send email receipt with retry logic
+async function sendReceiptEmail(order, user, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const transporter = createEmailTransporter();
 
-    // Format order items for email
-    const itemsList = order.items.map(item => {
-      const rawMaterial = item.rawMaterial;
-      return `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #eee;">${rawMaterial.name}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${item.price.toLocaleString()}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${(item.price * item.quantity).toLocaleString()}</td>
-        </tr>
+      // Format order items for email
+      const itemsList = order.items.map(item => {
+        const rawMaterial = item.rawMaterial;
+        return `
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${rawMaterial.name}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${item.price.toLocaleString()}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${(item.price * item.quantity).toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric'
+      });
+
+      // Create the email HTML
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #0d9488; margin: 0;">SupplyMind</h1>
+            <p style="color: #666;">Raw Materials Order Confirmation</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h2 style="color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">Order Details</h2>
+            <p><strong>Order ID:</strong> ${order._id}</p>
+            <p><strong>Order Date:</strong> ${orderDate}</p>
+            <p><strong>Payment ID:</strong> ${order.paymentInfo.razorpayPaymentId}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #333;">Shipping Address</h3>
+            <p>
+              ${order.shippingAddress.name}<br>
+              ${order.shippingAddress.address}<br>
+              ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}<br>
+              ${order.shippingAddress.country}<br>
+              Phone: ${order.shippingAddress.phone}
+            </p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #333;">Raw Materials Ordered</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #f8f9fa;">
+                  <th style="padding: 10px; text-align: left;">Raw Material</th>
+                  <th style="padding: 10px; text-align: center;">Qty</th>
+                  <th style="padding: 10px; text-align: right;">Price</th>
+                  <th style="padding: 10px; text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsList}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="padding: 10px; text-align: right; font-weight: bold;">Total Amount:</td>
+                  <td style="padding: 10px; text-align: right; font-weight: bold;">₹${order.totalAmount.toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
+            <p style="margin: 0; color: #666; text-align: center;">Thank you for your order! Your raw materials will be processed and shipped soon.</p>
+          </div>
+        </div>
       `;
-    }).join('');
 
-    const orderDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric'
-    });
+      const info = await transporter.sendMail({
+        from: `"SupplyMind" <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: `Raw Materials Order Confirmation #${order._id}`,
+        html: emailHtml
+      });
 
-    // Create the email HTML
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h1 style="color: #0d9488; margin: 0;">SupplyMind</h1>
-          <p style="color: #666;">Raw Materials Order Confirmation</p>
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-          <h2 style="color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">Order Details</h2>
-          <p><strong>Order ID:</strong> ${order._id}</p>
-          <p><strong>Order Date:</strong> ${orderDate}</p>
-          <p><strong>Payment ID:</strong> ${order.paymentInfo.razorpayPaymentId}</p>
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-          <h3 style="color: #333;">Shipping Address</h3>
-          <p>
-            ${order.shippingAddress.name}<br>
-            ${order.shippingAddress.address}<br>
-            ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}<br>
-            ${order.shippingAddress.country}<br>
-            Phone: ${order.shippingAddress.phone}
-          </p>
-        </div>
-        
-        <div style="margin-bottom: 20px;">
-          <h3 style="color: #333;">Raw Materials Ordered</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="background-color: #f8f9fa;">
-                <th style="padding: 10px; text-align: left;">Raw Material</th>
-                <th style="padding: 10px; text-align: center;">Qty</th>
-                <th style="padding: 10px; text-align: right;">Price</th>
-                <th style="padding: 10px; text-align: right;">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsList}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="3" style="padding: 10px; text-align: right; font-weight: bold;">Total Amount:</td>
-                <td style="padding: 10px; text-align: right; font-weight: bold;">₹${order.totalAmount.toLocaleString()}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        
-        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 20px;">
-          <p style="margin: 0; color: #666; text-align: center;">Thank you for your order! Your raw materials will be processed and shipped soon.</p>
-        </div>
-      </div>
-    `;
+      console.log(`Email sent successfully on attempt ${attempt}:`, info.messageId);
+      return true;
+    } catch (error) {
+      console.error(`Email sending attempt ${attempt} failed:`, error);
+      
+      if (attempt === maxRetries) {
+        console.error('All email sending attempts failed');
+        return false;
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+    }
+  }
+  return false;
+}
 
-    const info = await transporter.sendMail({
-      from: `"SupplyMind" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: `Raw Materials Order Confirmation #${order._id}`,
-      html: emailHtml
-    });
+// Rollback function to restore stock in case of failure
+async function rollbackStockChanges(orderItems, session) {
+  try {
+    console.log('🔄 Rolling back stock changes...');
+    
+    for (const item of orderItems) {
+      await RawMaterial.findByIdAndUpdate(
+        item.rawMaterial._id,
+        { 
+          $inc: { quantity: item.quantity } // Restore the quantity
+        },
+        { session }
+      );
+      console.log(`✅ Restored ${item.quantity} units for ${item.rawMaterial.name}`);
+    }
+    
+    console.log('✅ Stock rollback completed');
+  } catch (rollbackError) {
+    console.error('❌ Critical: Stock rollback failed:', rollbackError);
+    // This is a critical error - log it for manual intervention
+    // In production, you might want to send an alert to administrators
+  }
+}
 
-    console.log('Email sent successfully:', info.messageId);
-    return true;
+// Mark order as failed and restore stock
+async function markOrderAsFailed(orderId, reason, session) {
+  try {
+    await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          status: 'payment failed',
+          paymentStatus: 'failed',
+          failureReason: reason,
+          failedAt: new Date()
+        }
+      },
+      { session }
+    );
+    console.log(`Order ${orderId} marked as failed: ${reason}`);
   } catch (error) {
-    console.error('Email sending error:', error);
-    return false;
+    console.error('Error marking order as failed:', error);
   }
 }
 
 export async function POST(request) {
-  // Start MongoDB session for transaction
   const session = await mongoose.startSession();
   
   try {
@@ -169,7 +228,7 @@ export async function POST(request) {
       razorpaySignature 
     } = await request.json();
     
-    // Verify Razorpay signature
+    // Verify Razorpay signature first
     const isValidSignature = verifyRazorpaySignature(
       razorpayOrderId, 
       razorpayPaymentId, 
@@ -177,6 +236,7 @@ export async function POST(request) {
     );
     
     if (!isValidSignature) {
+      console.error('Invalid payment signature detected');
       return NextResponse.json(
         { error: 'Invalid payment signature' },
         { status: 400 }
@@ -190,114 +250,172 @@ export async function POST(request) {
     }).populate('items.rawMaterial');
     
     if (!order) {
+      console.error('Order not found for payment verification');
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
       );
     }
     
-    console.log('Processing order:', order._id);
+    // Check if order is already processed
+    if (order.status === 'processing' && order.paymentStatus === 'completed') {
+      console.log('Order already processed, returning success');
+      return NextResponse.json({
+        success: true,
+        message: 'Order already processed',
+        order: {
+          id: order._id,
+          status: order.status,
+          paymentStatus: order.paymentStatus
+        }
+      });
+    }
+    
+    console.log('Processing payment verification for order:', order._id);
     console.log('Order items:', order.items.length);
     
-    // Start transaction for atomic stock updates
+    // Start atomic transaction for stock updates and order processing
     const transactionResult = await session.withTransaction(async () => {
-      console.log('Starting atomic transaction for stock updates...');
+      console.log('Starting atomic transaction for payment processing...');
       
-      // Process each item in the order atomically
-      for (const item of order.items) {
-        console.log(`Processing item: ${item.rawMaterial.name}, ordered: ${item.quantity}`);
+      try {
+        // Step 1: Validate and update stock atomically
+        const stockUpdates = [];
         
-        // Use findOneAndUpdate with stock check for atomic operation
-        const updatedMaterial = await RawMaterial.findOneAndUpdate(
-          { 
-            _id: item.rawMaterial._id,
-            quantity: { $gte: item.quantity }, // Ensure sufficient stock
-            isActive: true
-          },
-          { 
-            $inc: { quantity: -item.quantity } // Atomic decrement
+        for (const item of order.items) {
+          console.log(`Validating stock for: ${item.rawMaterial.name}, ordered: ${item.quantity}`);
+          
+          // Use findOneAndUpdate with stock check for atomic operation
+          const updatedMaterial = await RawMaterial.findOneAndUpdate(
+            { 
+              _id: item.rawMaterial._id,
+              quantity: { $gte: item.quantity }, // Ensure sufficient stock
+              isActive: true
+            },
+            { 
+              $inc: { quantity: -item.quantity } // Atomic decrement
+            },
+            { 
+              new: true,
+              session, // Use transaction session
+              runValidators: false // Allow quantity to reach 0
+            }
+          );
+          
+          if (!updatedMaterial) {
+            // Stock insufficient or material not found
+            const currentMaterial = await RawMaterial.findById(item.rawMaterial._id, null, { session });
+            
+            if (!currentMaterial) {
+              throw new Error(`Raw material ${item.rawMaterial.name} no longer exists`);
+            }
+            
+            if (!currentMaterial.isActive) {
+              throw new Error(`Raw material ${item.rawMaterial.name} is no longer active`);
+            }
+            
+            throw new Error(`Insufficient stock for ${item.rawMaterial.name}. Available: ${currentMaterial.quantity}, Requested: ${item.quantity}`);
+          }
+          
+          stockUpdates.push({
+            materialId: item.rawMaterial._id,
+            materialName: item.rawMaterial.name,
+            quantityReduced: item.quantity,
+            newQuantity: updatedMaterial.quantity
+          });
+          
+          console.log(`✅ Stock updated for ${item.rawMaterial.name}: ${updatedMaterial.quantity} remaining`);
+        }
+        
+        // Step 2: Update order status within the same transaction
+        const updatedOrder = await Order.findByIdAndUpdate(
+          order._id,
+          {
+            $set: {
+              status: 'processing',
+              paymentStatus: 'completed',
+              'paymentInfo.razorpayPaymentId': razorpayPaymentId,
+              'paymentInfo.razorpaySignature': razorpaySignature,
+              processedAt: new Date()
+            }
           },
           { 
             new: true,
-            session, // Use transaction session
-            runValidators: false // Allow quantity to reach 0
+            session
           }
-        );
+        ).populate('items.rawMaterial');
         
-        if (!updatedMaterial) {
-          // Stock insufficient or material not found
-          const currentMaterial = await RawMaterial.findById(item.rawMaterial._id, null, { session });
-          
-          if (!currentMaterial) {
-            throw new Error(`Raw material ${item.rawMaterial.name} no longer exists`);
-          }
-          
-          if (!currentMaterial.isActive) {
-            throw new Error(`Raw material ${item.rawMaterial.name} is no longer active`);
-          }
-          
-          throw new Error(`Insufficient stock for ${item.rawMaterial.name}. Available: ${currentMaterial.quantity}, Requested: ${item.quantity}`);
-        }
+        console.log('✅ Order status updated to processing within transaction');
         
-        console.log(`✅ Atomically updated ${item.rawMaterial.name}: ${updatedMaterial.quantity} remaining`);
+        return {
+          order: updatedOrder,
+          stockUpdates
+        };
+        
+      } catch (transactionError) {
+        console.error('❌ Transaction failed:', transactionError.message);
+        
+        // Mark order as failed within the transaction
+        await markOrderAsFailed(order._id, transactionError.message, session);
+        
+        throw transactionError;
       }
-      
-      // Update order status within the same transaction
-      const updatedOrder = await Order.findByIdAndUpdate(
-        order._id,
-        {
-          $set: {
-            status: 'processing',
-            paymentStatus: 'completed',
-            'paymentInfo.razorpayPaymentId': razorpayPaymentId,
-            'paymentInfo.razorpaySignature': razorpaySignature
-          }
-        },
-        { 
-          new: true,
-          session
-        }
-      ).populate('items.rawMaterial');
-      
-      console.log('✅ Order status updated to processing within transaction');
-      return updatedOrder;
+    }, {
+      readConcern: { level: 'majority' },
+      writeConcern: { w: 'majority', j: true },
+      maxCommitTimeMS: 30000 // 30 second timeout
     });
     
-    console.log('✅ Transaction completed successfully');
+    console.log('✅ Payment transaction completed successfully');
     
-    // Get user data for email (outside transaction)
-    const user = await User.findById(userId);
-    
-    // Send receipt email
+    // Step 3: Post-transaction operations (these don't need to be atomic)
     let emailSent = false;
-    if (user && user.email) {
-      console.log('Sending receipt email to:', user.email);
-      emailSent = await sendReceiptEmail(transactionResult, user);
-      console.log('Email sent status:', emailSent);
+    let user = null;
+    
+    try {
+      // Get user data for email
+      user = await User.findById(userId);
+      
+      if (user && user.email) {
+        console.log('Sending receipt email to:', user.email);
+        emailSent = await sendReceiptEmail(transactionResult.order, user);
+        console.log('Email sent status:', emailSent);
+      }
+    } catch (emailError) {
+      console.error('Email sending failed (non-critical):', emailError);
+      // Don't fail the entire operation if email fails
     }
     
-    // Clear the user's cart (outside transaction)
-    await Cart.findOneAndUpdate(
-      { user: userId },
-      { $set: { items: [] } }
-    );
-    console.log('Cart cleared');
+    try {
+      // Clear the user's cart
+      await Cart.findOneAndUpdate(
+        { user: userId },
+        { $set: { items: [] } }
+      );
+      console.log('✅ Cart cleared');
+    } catch (cartError) {
+      console.error('Cart clearing failed (non-critical):', cartError);
+      // Don't fail the entire operation if cart clearing fails
+    }
     
+    // Return success response
     return NextResponse.json({
       success: true,
       message: 'Payment verified and order processed successfully',
       emailSent,
       order: {
-        id: transactionResult._id,
-        status: transactionResult.status,
-        paymentStatus: transactionResult.paymentStatus
-      }
+        id: transactionResult.order._id,
+        status: transactionResult.order.status,
+        paymentStatus: transactionResult.order.paymentStatus,
+        totalAmount: transactionResult.order.totalAmount
+      },
+      stockUpdates: transactionResult.stockUpdates
     });
     
   } catch (error) {
-    console.error('Payment verification error:', error);
+    console.error('❌ Payment verification error:', error);
     
-    // Check if it's a stock-related error
+    // Handle specific error types
     if (error.message.includes('Insufficient stock') || 
         error.message.includes('no longer exists') || 
         error.message.includes('no longer active')) {
@@ -311,8 +429,23 @@ export async function POST(request) {
       );
     }
     
+    if (error.message.includes('Transaction')) {
+      return NextResponse.json(
+        { 
+          error: 'Payment processing failed due to system error',
+          details: 'Please contact support if amount was deducted',
+          type: 'transaction_error'
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to verify payment', details: error.message },
+      { 
+        error: 'Failed to verify payment', 
+        details: error.message,
+        type: 'general_error'
+      },
       { status: 500 }
     );
   } finally {

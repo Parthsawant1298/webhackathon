@@ -1,201 +1,347 @@
-// models/rawMaterial.js - FIXED VERSION
-import mongoose from 'mongoose';
+// app/api/supplier/rawmaterials/route.js - FIXED VERSION
+import connectDB from '@/lib/mongodb';
+import RawMaterial from '@/models/rawMaterial';
+import Supplier from '@/models/supplier';
+import { v2 as cloudinary } from 'cloudinary';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
-const rawMaterialSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Raw material name is required'],
-    trim: true,
-    maxlength: [100, 'Raw material name cannot be more than 100 characters']
-  },
-  description: {
-    type: String,
-    required: [true, 'Description is required'],
-    trim: true,
-    maxlength: [1000, 'Description cannot be more than 1000 characters']
-  },
-  price: {
-    type: Number,
-    required: [true, 'Price is required'],
-    min: [0, 'Price cannot be negative']
-  },
-  originalPrice: {
-    type: Number,
-    min: [0, 'Original price cannot be negative']
-  },
-  discount: {
-    type: Number,
-    default: 0,
-    min: [0, 'Discount cannot be negative'],
-    max: [100, 'Discount cannot be more than 100%']
-  },
-  quantity: {
-    type: Number,
-    required: [true, 'Quantity is required'],
-    min: [0, 'Quantity cannot be negative'], // FIXED: Allow 0 quantity (out of stock)
-    validate: {
-      validator: function(v) {
-        return Number.isInteger(v) && v >= 0;
-      },
-      message: 'Quantity must be a non-negative integer'
-    }
-  },
-  category: {
-    type: String,
-    required: [true, 'Category is required'],
-    trim: true,
-    maxlength: [50, 'Category cannot be more than 50 characters']
-  },
-  subcategory: {
-    type: String,
-    required: [true, 'Subcategory is required'],
-    trim: true,
-    maxlength: [50, 'Subcategory cannot be more than 50 characters']
-  },
-  features: [{
-    type: String,
-    trim: true,
-    maxlength: [100, 'Feature cannot be more than 100 characters']
-  }],
-  tags: [{
-    type: String,
-    trim: true,
-    maxlength: [30, 'Tag cannot be more than 30 characters']
-  }],
-  images: [{
-    url: {
-      type: String,
-      required: true
-    },
-    alt: {
-      type: String,
-      default: ''
-    }
-  }],
-  mainImage: {
-    type: String,
-    required: [true, 'Main image is required']
-  },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Supplier',
-    required: true
-  },
-  // Reviews are now stored in separate Review collection
-  // These fields store aggregated review data for performance
-  ratings: {
-    type: Number,
-    default: 0,
-    min: [0, 'Rating cannot be negative'],
-    max: [5, 'Rating cannot be more than 5']
-  },
-  numReviews: {
-    type: Number,
-    default: 0,
-    min: [0, 'Number of reviews cannot be negative']
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  }
-}, {
-  timestamps: true
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Index for search optimization
-rawMaterialSchema.index({ name: 'text', description: 'text', category: 'text', subcategory: 'text' });
-rawMaterialSchema.index({ category: 1, subcategory: 1 });
-rawMaterialSchema.index({ createdBy: 1 });
-rawMaterialSchema.index({ createdAt: -1 });
-rawMaterialSchema.index({ ratings: -1 }); // Index for sorting by ratings
-rawMaterialSchema.index({ numReviews: -1 }); // Index for sorting by review count
-rawMaterialSchema.index({ quantity: 1 }); // Index for stock filtering
-
-// Virtual for getting reviews from separate Review collection
-rawMaterialSchema.virtual('reviewsData', {
-  ref: 'Review',
-  localField: '_id',
-  foreignField: 'rawMaterialId',
-  match: { isActive: true }
-});
-
-// Method to update ratings based on separate Review collection
-rawMaterialSchema.methods.updateRatingsFromReviews = async function() {
-  const Review = require('./review').default || require('./review');
-  
-  const aggregateResult = await Review.aggregate([
-    {
-      $match: {
-        rawMaterialId: this._id,
-        isActive: true
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        avgRating: { $avg: '$rating' },
-        totalReviews: { $sum: 1 }
-      }
-    }
-  ]);
-
-  if (aggregateResult.length > 0) {
-    this.ratings = Math.round(aggregateResult[0].avgRating * 10) / 10; // Round to 1 decimal
-    this.numReviews = aggregateResult[0].totalReviews;
-  } else {
-    this.ratings = 0;
-    this.numReviews = 0;
-  }
-
-  return this.save();
-};
-
-// Pre-save middleware to ensure quantity is properly handled
-rawMaterialSchema.pre('save', function(next) {
-  // Ensure quantity is a non-negative integer
-  if (this.quantity < 0) {
-    this.quantity = 0;
-  }
-  this.quantity = Math.floor(this.quantity);
-  next();
-});
-
-// Static method to safely update quantity (used in payment processing)
-rawMaterialSchema.statics.updateQuantity = async function(materialId, newQuantity) {
+// Get supplier's raw materials
+export async function GET(request) {
   try {
-    const result = await this.findByIdAndUpdate(
-      materialId,
-      { 
-        $set: { quantity: Math.max(0, Math.floor(newQuantity)) }
-      },
-      { 
-        new: true,
-        runValidators: false, // Bypass validators to allow 0
-        lean: true
-      }
-    );
-    return result;
+    await connectDB();
+    
+    const { searchParams } = new URL(request.url);
+    const supplierId = searchParams.get('supplierId');
+    
+    if (!supplierId) {
+      return NextResponse.json(
+        { success: false, error: 'Supplier ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Fetch raw materials for the supplier
+    const rawMaterials = await RawMaterial.find({ 
+      createdBy: supplierId,
+      isActive: true 
+    })
+    .populate('createdBy', 'supplierName email')
+    .sort({ createdAt: -1 })
+    .lean();
+    
+    return NextResponse.json({
+      success: true,
+      rawMaterials,
+      total: rawMaterials.length
+    });
+    
   } catch (error) {
-    console.error('Error updating quantity:', error);
-    throw error;
+    console.error('Fetch supplier raw materials error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch raw materials', details: error.message },
+      { status: 500 }
+    );
   }
-};
+}
 
-// Instance method to check if item is in stock
-rawMaterialSchema.methods.isInStock = function(requestedQuantity = 1) {
-  return this.quantity >= requestedQuantity;
-};
-
-// Instance method to reduce stock
-rawMaterialSchema.methods.reduceStock = async function(quantity) {
-  if (this.quantity < quantity) {
-    throw new Error(`Insufficient stock. Available: ${this.quantity}, Requested: ${quantity}`);
+// Create new raw material
+export async function POST(request) {
+  try {
+    await connectDB();
+    
+    // Get supplier session from cookie
+    const cookieStore = await cookies();
+    const supplierSession = cookieStore.get('supplier-session');
+    
+    if (!supplierSession) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    const sessionSupplier = JSON.parse(supplierSession.value);
+    const supplierId = sessionSupplier.id;
+    
+    // Verify supplier exists
+    const supplier = await Supplier.findById(supplierId);
+    if (!supplier) {
+      return NextResponse.json(
+        { success: false, error: 'Supplier not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Parse form data
+    const formData = await request.formData();
+    
+    // Extract text fields
+    const name = formData.get('name');
+    const description = formData.get('description');
+    const price = parseFloat(formData.get('price'));
+    const originalPrice = formData.get('originalPrice') ? parseFloat(formData.get('originalPrice')) : null;
+    const quantity = parseInt(formData.get('quantity'));
+    const category = formData.get('category');
+    const subcategory = formData.get('subcategory');
+    const features = formData.get('features');
+    const tags = formData.get('tags');
+    
+    // Validation
+    if (!name || !description || !price || !quantity || !category || !subcategory) {
+      return NextResponse.json(
+        { success: false, error: 'All required fields must be provided' },
+        { status: 400 }
+      );
+    }
+    
+    if (price <= 0 || quantity < 0) {
+      return NextResponse.json(
+        { success: false, error: 'Price must be positive and quantity must be non-negative' },
+        { status: 400 }
+      );
+    }
+    
+    // Extract and upload images
+    const imageFiles = [];
+    for (let i = 0; i < 10; i++) {
+      const imageFile = formData.get(`image${i}`);
+      if (imageFile) {
+        imageFiles.push(imageFile);
+      }
+    }
+    
+    if (imageFiles.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'At least one image is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Upload images to Cloudinary
+    const uploadedImages = [];
+    let mainImage = null;
+    
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      
+      // Convert file to buffer
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      
+      // Upload to Cloudinary
+      const uploadResponse = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'image',
+            folder: 'supplymind/raw-materials',
+            public_id: `${supplierId}_${Date.now()}_${i}`,
+            transformation: [
+              { width: 800, height: 600, crop: 'fill' },
+              { quality: 'auto', fetch_format: 'auto' }
+            ]
+          },
+          (error, result) => {
+            if (error) {
+              console.error('Cloudinary upload error:', error);
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        ).end(buffer);
+      });
+      
+      const imageData = {
+        url: uploadResponse.secure_url,
+        alt: `${name} - Image ${i + 1}`
+      };
+      
+      uploadedImages.push(imageData);
+      
+      // First image becomes main image
+      if (i === 0) {
+        mainImage = uploadResponse.secure_url;
+      }
+    }
+    
+    // Calculate discount if originalPrice is provided
+    let discount = 0;
+    if (originalPrice && originalPrice > price) {
+      discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+    }
+    
+    // Process features and tags
+    const featuresArray = features ? features.split(',').map(f => f.trim()).filter(f => f) : [];
+    const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+    
+    // Create raw material
+    const rawMaterial = await RawMaterial.create({
+      name: name.trim(),
+      description: description.trim(),
+      price,
+      originalPrice,
+      discount,
+      quantity,
+      category: category.trim(),
+      subcategory: subcategory.trim(),
+      features: featuresArray,
+      tags: tagsArray,
+      images: uploadedImages,
+      mainImage,
+      createdBy: supplierId,
+      ratings: 0,
+      numReviews: 0,
+      isActive: true
+    });
+    
+    // Populate the created raw material
+    const populatedRawMaterial = await RawMaterial.findById(rawMaterial._id)
+      .populate('createdBy', 'supplierName email businessType')
+      .lean();
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Raw material created successfully',
+      rawMaterial: populatedRawMaterial
+    }, { status: 201 });
+    
+  } catch (error) {
+    console.error('Create raw material error:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return NextResponse.json(
+        { success: false, error: messages[0] },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { success: false, error: 'Failed to create raw material', details: error.message },
+      { status: 500 }
+    );
   }
-  
-  this.quantity = Math.max(0, this.quantity - quantity);
-  return await this.save({ validateBeforeSave: false });
-};
+}
 
-const RawMaterial = mongoose.models.RawMaterial || mongoose.model('RawMaterial', rawMaterialSchema);
+// Update raw material
+export async function PUT(request) {
+  try {
+    await connectDB();
+    
+    // Get supplier session from cookie
+    const cookieStore = await cookies();
+    const supplierSession = cookieStore.get('supplier-session');
+    
+    if (!supplierSession) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    const sessionSupplier = JSON.parse(supplierSession.value);
+    const supplierId = sessionSupplier.id;
+    
+    const { rawMaterialId, ...updateData } = await request.json();
+    
+    if (!rawMaterialId) {
+      return NextResponse.json(
+        { success: false, error: 'Raw material ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Find and update the raw material (only if owned by supplier)
+    const rawMaterial = await RawMaterial.findOneAndUpdate(
+      { _id: rawMaterialId, createdBy: supplierId },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).populate('createdBy', 'supplierName email businessType');
+    
+    if (!rawMaterial) {
+      return NextResponse.json(
+        { success: false, error: 'Raw material not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Raw material updated successfully',
+      rawMaterial
+    });
+    
+  } catch (error) {
+    console.error('Update raw material error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update raw material', details: error.message },
+      { status: 500 }
+    );
+  }
+}
 
-export default RawMaterial;
+// Delete raw material (soft delete)
+export async function DELETE(request) {
+  try {
+    await connectDB();
+    
+    // Get supplier session from cookie
+    const cookieStore = await cookies();
+    const supplierSession = cookieStore.get('supplier-session');
+    
+    if (!supplierSession) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+    
+    const sessionSupplier = JSON.parse(supplierSession.value);
+    const supplierId = sessionSupplier.id;
+    
+    const { searchParams } = new URL(request.url);
+    const rawMaterialId = searchParams.get('id');
+    
+    if (!rawMaterialId) {
+      return NextResponse.json(
+        { success: false, error: 'Raw material ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Soft delete the raw material (only if owned by supplier)
+    const rawMaterial = await RawMaterial.findOneAndUpdate(
+      { _id: rawMaterialId, createdBy: supplierId },
+      { $set: { isActive: false } },
+      { new: true }
+    );
+    
+    if (!rawMaterial) {
+      return NextResponse.json(
+        { success: false, error: 'Raw material not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Raw material deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Delete raw material error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete raw material', details: error.message },
+      { status: 500 }
+    );
+  }
+}
