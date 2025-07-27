@@ -1,4 +1,4 @@
-// models/rawMaterial.js - FIXED VERSION
+// models/rawMaterial.js - FIXED VERSION with proper indexes
 import mongoose from 'mongoose';
 
 const rawMaterialSchema = new mongoose.Schema({
@@ -46,7 +46,6 @@ const rawMaterialSchema = new mongoose.Schema({
   },
   subcategory: {
     type: String,
-    required: [true, 'Subcategory is required'],
     trim: true,
     maxlength: [50, 'Subcategory cannot be more than 50 characters'],
     index: true
@@ -108,8 +107,7 @@ rawMaterialSchema.index({ category: 1, subcategory: 1, isActive: 1 });
 rawMaterialSchema.index({ createdBy: 1, isActive: 1 });
 rawMaterialSchema.index({ createdAt: -1 });
 rawMaterialSchema.index({ ratings: -1, numReviews: -1 });
-rawMaterialSchema.index({ price: 1 });
-rawMaterialSchema.index({ quantity: 1 });
+rawMaterialSchema.index({ price: 1, quantity: 1 });
 
 // Text index for search
 rawMaterialSchema.index({ 
@@ -129,13 +127,20 @@ rawMaterialSchema.virtual('lowStock').get(function() {
   return this.quantity > 0 && this.quantity <= 5;
 });
 
-// Pre-save middleware to calculate discount
+// Pre-save middleware to calculate discount and set main image
 rawMaterialSchema.pre('save', function(next) {
+  // Calculate discount
   if (this.originalPrice && this.originalPrice > this.price) {
     this.discount = Math.round(((this.originalPrice - this.price) / this.originalPrice) * 100);
   } else {
     this.discount = 0;
   }
+  
+  // Set main image if not set and images exist
+  if (!this.mainImage && this.images && this.images.length > 0) {
+    this.mainImage = this.images[0].url;
+  }
+  
   next();
 });
 

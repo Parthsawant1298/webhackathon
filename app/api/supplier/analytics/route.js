@@ -124,10 +124,10 @@ export async function GET(request) {
               day: { $dayOfMonth: '$createdAt' }
             },
             revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            orders: { $addToSet: '$_id' }
+            orderIds: { $addToSet: '$_id' }
           }
         },
-        { $addFields: { orders: { $size: '$orders' } } },
+        { $addFields: { orders: { $size: '$orderIds' } } },
         { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
         { $limit: 90 }
       ]),
@@ -144,11 +144,16 @@ export async function GET(request) {
               month: { $month: '$createdAt' }
             },
             revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            orders: { $addToSet: '$_id' },
+            orderIds: { $addToSet: '$_id' },
             vendors: { $addToSet: '$user' }
           }
         },
-        { $addFields: { uniqueVendors: { $size: '$vendors' }, orders: { $size: '$orders' } } },
+        { 
+          $addFields: { 
+            uniqueVendors: { $size: '$vendors' }, 
+            orders: { $size: '$orderIds' } 
+          } 
+        },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       
@@ -171,10 +176,10 @@ export async function GET(request) {
             _id: '$rawMaterialDetails.category',
             revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
             quantity: { $sum: '$items.quantity' },
-            orders: { $addToSet: '$_id' }
+            orderIds: { $addToSet: '$_id' }
           }
         },
-        { $addFields: { orders: { $size: '$orders' } } },
+        { $addFields: { orders: { $size: '$orderIds' } } },
         { $sort: { revenue: -1 } }
       ]),
       
@@ -188,7 +193,7 @@ export async function GET(request) {
             _id: '$items.rawMaterial',
             revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
             quantitySold: { $sum: '$items.quantity' },
-            orders: { $addToSet: '$_id' }
+            orderIds: { $addToSet: '$_id' }
           }
         },
         {
@@ -206,7 +211,7 @@ export async function GET(request) {
             category: '$rawMaterialDetails.category',
             revenue: 1,
             quantitySold: 1,
-            orders: { $size: '$orders' }
+            orders: { $size: '$orderIds' }
           }
         },
         { $sort: { revenue: -1 } },
@@ -222,10 +227,10 @@ export async function GET(request) {
           $group: {
             _id: '$user',
             totalSpent: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            orderCount: { $addToSet: '$_id' }
+            orderIds: { $addToSet: '$_id' }
           }
         },
-        { $addFields: { orderCount: { $size: '$orderCount' } } },
+        { $addFields: { orderCount: { $size: '$orderIds' } } },
         {
           $bucket: {
             groupBy: '$totalSpent',
@@ -330,14 +335,14 @@ export async function GET(request) {
               }
             },
             revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            orders: { $addToSet: '$_id' },
+            orderIds: { $addToSet: '$_id' },
             vendors: { $addToSet: '$user' }
           }
         },
         {
           $addFields: {
             uniqueVendors: { $size: '$vendors' },
-            orders: { $size: '$orders' }
+            orders: { $size: '$orderIds' }
           }
         }
       ]),
@@ -351,11 +356,11 @@ export async function GET(request) {
           $group: {
             _id: '$user',
             totalSpent: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-            orderCount: { $addToSet: '$_id' },
+            orderIds: { $addToSet: '$_id' },
             lastOrder: { $max: '$createdAt' }
           }
         },
-        { $addFields: { orderCount: { $size: '$orderCount' } } },
+        { $addFields: { orderCount: { $size: '$orderIds' } } },
         {
           $lookup: {
             from: 'users',

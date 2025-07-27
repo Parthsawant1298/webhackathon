@@ -1,4 +1,4 @@
-// app/api/supplier/order/route.js - FIXED VERSION
+// app/api/supplier/orders/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -95,15 +95,7 @@ export async function GET(request) {
           as: 'userDetails'
         }
       },
-      { $unwind: '$userDetails' },
-      {
-        $lookup: {
-          from: 'rawmaterials',
-          localField: 'items.rawMaterial',
-          foreignField: '_id',
-          as: 'rawMaterialDetails'
-        }
-      }
+      { $unwind: '$userDetails' }
     ];
 
     // Add search filter if provided
@@ -118,7 +110,17 @@ export async function GET(request) {
       });
     }
 
-    // Add items processing to include raw material details
+    // Add lookup for raw materials to get details
+    pipeline.push({
+      $lookup: {
+        from: 'rawmaterials',
+        localField: 'items.rawMaterial',
+        foreignField: '_id',
+        as: 'rawMaterialDetails'
+      }
+    });
+
+    // Process items to include raw material details
     pipeline.push({
       $addFields: {
         items: {
@@ -126,26 +128,29 @@ export async function GET(request) {
             input: '$items',
             as: 'item',
             in: {
-              rawMaterial: {
-                $arrayElemAt: [
-                  {
-                    $filter: {
-                      input: '$rawMaterialDetails',
-                      cond: { $eq: ['$$this._id', '$$item.rawMaterial'] }
-                    }
-                  },
-                  0
-                ]
-              },
-              quantity: '$$item.quantity',
-              price: '$$item.price'
+              $mergeObjects: [
+                '$item',
+                {
+                  rawMaterial: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$rawMaterialDetails',
+                          cond: { $eq: ['$this._id', '$item.rawMaterial'] }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                }
+              ]
             }
           }
         }
       }
     });
 
-    // Remove rawMaterialDetails field as it's now embedded in items
+    // Remove the temporary rawMaterialDetails field
     pipeline.push({
       $project: {
         rawMaterialDetails: 0
@@ -176,9 +181,19 @@ export async function GET(request) {
     const totalCount = ordersResult.totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Calculate stats
+    // Calculate stats for supplier's portion of orders
     const statsResult = await Order.aggregate([
       { $match: baseFilter },
+      { $unwind: '$items' },
+      { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+      {
+        $group: {
+          _id: '$_id',
+          status: { $first: '$status' },
+          paymentStatus: { $first: '$paymentStatus' },
+          supplierRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+        }
+      },
       {
         $group: {
           _id: null,
@@ -187,7 +202,7 @@ export async function GET(request) {
             $sum: {
               $cond: [
                 { $eq: ['$paymentStatus', 'completed'] },
-                '$totalAmount',
+                '$supplierRevenue',
                 0
               ]
             }

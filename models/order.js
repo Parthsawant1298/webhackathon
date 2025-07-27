@@ -1,4 +1,4 @@
-// models/order.js - FIXED VERSION
+// models/order.js - FIXED VERSION with better aggregation support
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
@@ -116,8 +116,9 @@ orderSchema.index({ 'paymentInfo.razorpayOrderId': 1 });
 orderSchema.index({ 'items.rawMaterial': 1 });
 orderSchema.index({ totalAmount: -1 });
 
-// Index for supplier analytics
+// Critical index for supplier analytics - this is the key fix
 orderSchema.index({ 'items.rawMaterial': 1, paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ 'items.rawMaterial': 1, status: 1, createdAt: -1 });
 
 // Virtual for order value category
 orderSchema.virtual('valueCategory').get(function() {
@@ -152,56 +153,23 @@ orderSchema.pre('save', function(next) {
   next();
 });
 
-// Static method to get orders by supplier
-orderSchema.statics.findBySupplier = function(supplierRawMaterialIds, options = {}) {
-  const query = this.find({ 'items.rawMaterial': { $in: supplierRawMaterialIds } });
-  
-  if (options.status) {
-    query.where('status', options.status);
-  }
-  
-  if (options.paymentStatus) {
-    query.where('paymentStatus', options.paymentStatus);
-  }
-  
-  if (options.startDate || options.endDate) {
-    const dateFilter = {};
-    if (options.startDate) dateFilter.$gte = new Date(options.startDate);
-    if (options.endDate) dateFilter.$lte = new Date(options.endDate);
-    query.where('createdAt', dateFilter);
-  }
-  
-  return query.sort({ createdAt: -1 });
-};
-
-// Static method to get revenue by supplier
-orderSchema.statics.getSupplierRevenue = function(supplierRawMaterialIds, options = {}) {
+// Static method to get orders by supplier with better aggregation
+orderSchema.statics.findBySupplierMaterials = function(supplierRawMaterialIds, options = {}) {
   const pipeline = [
     { 
       $match: { 
-        'items.rawMaterial': { $in: supplierRawMaterialIds },
-        paymentStatus: 'completed'
+        'items.rawMaterial': { $in: supplierRawMaterialIds }
       } 
-    },
-    { $unwind: '$items' },
-    { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
-    {
-      $group: {
-        _id: null,
-        totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-        totalOrders: { $addToSet: '$_id' },
-        totalItems: { $sum: '$items.quantity' }
-      }
-    },
-    {
-      $project: {
-        totalRevenue: 1,
-        totalOrders: { $size: '$totalOrders' },
-        totalItems: 1,
-        averageOrderValue: { $divide: ['$totalRevenue', { $size: '$totalOrders' }] }
-      }
     }
   ];
+  
+  if (options.status) {
+    pipeline[0].$match.status = options.status;
+  }
+  
+  if (options.paymentStatus) {
+    pipeline[0].$match.paymentStatus = options.paymentStatus;
+  }
   
   if (options.startDate || options.endDate) {
     const dateFilter = {};
@@ -209,6 +177,117 @@ orderSchema.statics.getSupplierRevenue = function(supplierRawMaterialIds, option
     if (options.endDate) dateFilter.$lte = new Date(options.endDate);
     pipeline[0].$match.createdAt = dateFilter;
   }
+  
+  // Add lookup for user details
+  pipeline.push({
+    $lookup: {
+      from: 'users',
+      localField: 'user',
+      foreignField: '_id',
+      as: 'userDetails'
+    }
+  });
+  
+  pipeline.push({ $unwind: '$userDetails' });
+  
+  // Add lookup for raw material details
+  pipeline.push({
+    $lookup: {
+      from: 'rawmaterials',
+      localField: 'items.rawMaterial',
+      foreignField: '_id',
+      as: 'rawMaterialDetails'
+    }
+  });
+  
+  // Process items to include raw material details
+  pipeline.push({
+    $addFields: {
+      items: {
+        $map: {
+          input: '$items',
+          as: 'item',
+          in: {
+            $mergeObjects: [
+              '$$item',
+              {
+                rawMaterial: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$rawMaterialDetails',
+                        cond: { $eq: ['$$this._id', '$$item.rawMaterial'] }
+                      }
+                    },
+                    0
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  });
+  
+  // Clean up
+  pipeline.push({
+    $project: {
+      rawMaterialDetails: 0
+    }
+  });
+  
+  pipeline.push({ $sort: { createdAt: -1 } });
+  
+  return this.aggregate(pipeline);
+};
+
+// Static method to get revenue analytics by supplier
+orderSchema.statics.getSupplierAnalytics = function(supplierRawMaterialIds, timeRange = {}) {
+  const pipeline = [
+    { 
+      $match: { 
+        'items.rawMaterial': { $in: supplierRawMaterialIds },
+        paymentStatus: 'completed'
+      } 
+    }
+  ];
+  
+  if (timeRange.startDate || timeRange.endDate) {
+    const dateFilter = {};
+    if (timeRange.startDate) dateFilter.$gte = new Date(timeRange.startDate);
+    if (timeRange.endDate) dateFilter.$lte = new Date(timeRange.endDate);
+    pipeline[0].$match.createdAt = dateFilter;
+  }
+  
+  pipeline.push(
+    { $unwind: '$items' },
+    { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        totalOrders: { $addToSet: '$_id' },
+        totalItems: { $sum: '$items.quantity' },
+        totalVendors: { $addToSet: '$user' }
+      }
+    },
+    {
+      $project: {
+        totalRevenue: 1,
+        totalOrders: { $size: '$totalOrders' },
+        totalItems: 1,
+        totalVendors: { $size: '$totalVendors' },
+        averageOrderValue: { 
+          $cond: [
+            { $gt: [{ $size: '$totalOrders' }, 0] },
+            { $divide: ['$totalRevenue', { $size: '$totalOrders' }] },
+            0
+          ]
+        }
+      }
+    }
+  );
   
   return this.aggregate(pipeline);
 };
@@ -221,7 +300,7 @@ orderSchema.methods.containsSupplierMaterials = function(supplierRawMaterialIds)
 };
 
 // Instance method to get supplier-specific items and revenue
-orderSchema.methods.getSupplierPortition = function(supplierRawMaterialIds) {
+orderSchema.methods.getSupplierPortion = function(supplierRawMaterialIds) {
   const supplierItems = this.items.filter(item =>
     supplierRawMaterialIds.some(id => id.toString() === item.rawMaterial.toString())
   );

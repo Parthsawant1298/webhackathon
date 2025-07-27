@@ -61,8 +61,6 @@ export async function GET(request) {
 
     const [
       totalRawMaterials,
-      totalVendors,
-      totalOrders,
       revenueData,
       recentRawMaterials,
       recentOrders,
@@ -72,19 +70,11 @@ export async function GET(request) {
       outOfStockRawMaterialsCount,
       processingOrdersCount,
       deliveredOrdersCount,
-      paymentFailedOrdersCount
+      paymentFailedOrdersCount,
+      totalVendors
     ] = await Promise.all([
       // Total raw materials
       RawMaterial.countDocuments({ createdBy: supplierId, isActive: true }),
-      
-      // Total unique vendors who ordered from this supplier
-      Order.distinct('user', { 
-        'items.rawMaterial': { $in: supplierRawMaterialIds },
-        paymentStatus: 'completed'
-      }),
-      
-      // Total orders containing this supplier's materials
-      Order.countDocuments({ 'items.rawMaterial': { $in: supplierRawMaterialIds } }),
       
       // Total revenue from completed orders
       Order.aggregate([
@@ -99,8 +89,15 @@ export async function GET(request) {
         { 
           $group: { 
             _id: null, 
-            totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } 
+            totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+            totalOrders: { $addToSet: '$_id' }
           } 
+        },
+        {
+          $project: {
+            totalRevenue: 1,
+            totalOrders: { $size: '$totalOrders' }
+          }
         }
       ]),
       
@@ -116,7 +113,7 @@ export async function GET(request) {
         .sort({ createdAt: -1 })
         .limit(5)
         .populate('user', 'vendorName email')
-        .select('totalAmount status paymentStatus createdAt user')
+        .select('totalAmount status paymentStatus createdAt user items')
         .lean(),
       
       // Category statistics
@@ -189,10 +186,17 @@ export async function GET(request) {
       Order.countDocuments({ 
         'items.rawMaterial': { $in: supplierRawMaterialIds }, 
         paymentStatus: 'failed' 
+      }),
+
+      // Total unique vendors who ordered from this supplier
+      Order.distinct('user', { 
+        'items.rawMaterial': { $in: supplierRawMaterialIds },
+        paymentStatus: 'completed'
       })
     ]);
 
     const totalRevenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
+    const totalOrders = revenueData.length > 0 ? revenueData[0].totalOrders : 0;
     
     // Create recent activity from materials and orders
     const recentActivity = [];
