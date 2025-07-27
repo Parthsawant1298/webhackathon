@@ -1,4 +1,4 @@
-// app/api/supplier/analytics/route.js
+// app/api/supplier/analytics/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -32,7 +32,6 @@ export async function GET(request) {
     // Get query parameters for time range
     const url = new URL(request.url);
     const timeRange = url.searchParams.get('timeRange') || '12months';
-    const category = url.searchParams.get('category') || 'all';
 
     // Calculate date ranges
     const now = new Date();
@@ -63,8 +62,33 @@ export async function GET(request) {
     }
 
     // Get all raw material IDs for the current supplier
-    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id').lean();
+    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId, isActive: true }).select('_id').lean();
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
+
+    if (supplierRawMaterialIds.length === 0) {
+      // Return default empty analytics if no raw materials
+      return NextResponse.json({
+        success: true,
+        timeRange,
+        data: {
+          dailyRevenue: [],
+          monthlyRevenue: [],
+          categoryRevenue: [],
+          productRevenue: [],
+          vendorAnalytics: [],
+          paymentAnalysis: [],
+          orderSizeAnalysis: [],
+          topVendors: [],
+          growth: { revenue: 0, orders: 0, vendors: 0 },
+          summary: {
+            today: { revenue: 0, orders: 0 },
+            thisMonth: { revenue: 0, orders: 0 },
+            thisYear: { revenue: 0, orders: 0 },
+            allTime: { revenue: 0, orders: 0 }
+          }
+        }
+      });
+    }
 
     // Base match for orders containing the supplier's raw materials
     const baseOrderMatch = {
@@ -219,6 +243,16 @@ export async function GET(request) {
       // 6. Payment Method Analysis
       Order.aggregate([
         { $match: baseOrderMatch },
+        { $unwind: '$items' },
+        { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+        {
+          $group: {
+            _id: '$_id',
+            totalAmount: { $first: '$totalAmount' },
+            paymentInfo: { $first: '$paymentInfo' },
+            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+          }
+        },
         {
           $group: {
             _id: {
@@ -228,9 +262,9 @@ export async function GET(request) {
                 'Other'
               ]
             },
-            revenue: { $sum: '$totalAmount' },
+            revenue: { $sum: '$revenue' },
             orders: { $sum: 1 },
-            avgOrderValue: { $avg: '$totalAmount' }
+            avgOrderValue: { $avg: '$revenue' }
           }
         }
       ]),
@@ -238,16 +272,24 @@ export async function GET(request) {
       // 7. Order Size Analysis
       Order.aggregate([
         { $match: baseOrderMatch },
+        { $unwind: '$items' },
+        { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+        {
+          $group: {
+            _id: '$_id',
+            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+          }
+        },
         {
           $addFields: {
             orderSize: {
               $switch: {
                 branches: [
-                  { case: { $lt: ['$totalAmount', 500] }, then: '₹0-500' },
-                  { case: { $lt: ['$totalAmount', 1000] }, then: '₹500-1,000' },
-                  { case: { $lt: ['$totalAmount', 2500] }, then: '₹1,000-2,500' },
-                  { case: { $lt: ['$totalAmount', 5000] }, then: '₹2,500-5,000' },
-                  { case: { $lt: ['$totalAmount', 10000] }, then: '₹5,000-10,000' }
+                  { case: { $lt: ['$revenue', 500] }, then: '₹0-500' },
+                  { case: { $lt: ['$revenue', 1000] }, then: '₹500-1,000' },
+                  { case: { $lt: ['$revenue', 2500] }, then: '₹1,000-2,500' },
+                  { case: { $lt: ['$revenue', 5000] }, then: '₹2,500-5,000' },
+                  { case: { $lt: ['$revenue', 10000] }, then: '₹5,000-10,000' }
                 ],
                 default: '₹10,000+'
               }
@@ -258,8 +300,8 @@ export async function GET(request) {
           $group: {
             _id: '$orderSize',
             orders: { $sum: 1 },
-            revenue: { $sum: '$totalAmount' },
-            avgOrderValue: { $avg: '$totalAmount' }
+            revenue: { $sum: '$revenue' },
+            avgOrderValue: { $avg: '$revenue' }
           }
         },
         { $sort: { avgOrderValue: 1 } }
@@ -345,25 +387,25 @@ export async function GET(request) {
           $group: {
             _id: '$_id',
             createdAt: { $first: '$createdAt' },
-            totalAmount: { $first: '$totalAmount' }
+            revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
           }
         },
         {
           $facet: {
             today: [
               { $match: { createdAt: { $gte: today } } },
-              { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } }
+              { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } }
             ],
             thisMonth: [
               { $match: { createdAt: { $gte: thisMonth } } },
-              { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } }
+              { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } }
             ],
             thisYear: [
               { $match: { createdAt: { $gte: thisYear } } },
-              { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } }
+              { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } }
             ],
             allTime: [
-              { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } }
+              { $group: { _id: null, revenue: { $sum: '$revenue' }, orders: { $sum: 1 } } }
             ]
           }
         }
@@ -396,7 +438,6 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       timeRange,
-      category,
       data: {
         dailyRevenue,
         monthlyRevenue,

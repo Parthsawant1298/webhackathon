@@ -2,7 +2,7 @@
 "use client"
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, LogOut, Menu, Package, ShoppingCart, Star, User, X } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Package, ShoppingCart, User, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -32,7 +32,7 @@ export default function Header() {
          }
        }
      } catch (error) {
-       console.error('Auth check failed:', error)
+       // Silently handle auth check failure
        setUser(null)
        setCartItemCount(0)
      } finally {
@@ -64,7 +64,7 @@ export default function Header() {
        setCartItemCount(0)
      }
    } catch (error) {
-     console.error('Fetch cart count failed:', error)
+     // Silently handle cart fetch failure
      setCartItemCount(0)
    }
  }
@@ -93,7 +93,11 @@ export default function Header() {
      setCartItemCount(0)
      router.push('/')
    } catch (error) {
-     console.error('Logout failed:', error)
+     // Handle logout error gracefully
+     setUser(null)
+     setIsProfileMenuOpen(false)
+     setCartItemCount(0)
+     router.push('/')
    }
  }
  

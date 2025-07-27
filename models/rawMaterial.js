@@ -1,4 +1,4 @@
-// models/rawMaterial.js - CLEANED VERSION (Remove unused rating logic)
+// models/rawMaterial.js - FIXED VERSION
 import mongoose from 'mongoose';
 
 const rawMaterialSchema = new mongoose.Schema({
@@ -6,7 +6,8 @@ const rawMaterialSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Raw material name is required'],
     trim: true,
-    maxlength: [100, 'Raw material name cannot be more than 100 characters']
+    maxlength: [100, 'Raw material name cannot be more than 100 characters'],
+    index: true
   },
   description: {
     type: String,
@@ -17,7 +18,8 @@ const rawMaterialSchema = new mongoose.Schema({
   price: {
     type: Number,
     required: [true, 'Price is required'],
-    min: [0, 'Price cannot be negative']
+    min: [0, 'Price cannot be negative'],
+    index: true
   },
   originalPrice: {
     type: Number,
@@ -32,19 +34,22 @@ const rawMaterialSchema = new mongoose.Schema({
   quantity: {
     type: Number,
     required: [true, 'Quantity is required'],
-    min: [0, 'Quantity must be at least 0']
+    min: [0, 'Quantity must be at least 0'],
+    index: true
   },
   category: {
     type: String,
     required: [true, 'Category is required'],
     trim: true,
-    maxlength: [50, 'Category cannot be more than 50 characters']
+    maxlength: [50, 'Category cannot be more than 50 characters'],
+    index: true
   },
   subcategory: {
     type: String,
     required: [true, 'Subcategory is required'],
     trim: true,
-    maxlength: [50, 'Subcategory cannot be more than 50 characters']
+    maxlength: [50, 'Subcategory cannot be more than 50 characters'],
+    index: true
   },
   features: [{
     type: String,
@@ -73,35 +78,90 @@ const rawMaterialSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Supplier',
-    required: true
+    required: true,
+    index: true
   },
-  // ✅ KEEP: These fields store aggregated review data for performance
   ratings: {
     type: Number,
     default: 0,
     min: [0, 'Rating cannot be negative'],
-    max: [5, 'Rating cannot be more than 5']
+    max: [5, 'Rating cannot be more than 5'],
+    index: true
   },
   numReviews: {
     type: Number,
     default: 0,
-    min: [0, 'Number of reviews cannot be negative']
+    min: [0, 'Number of reviews cannot be negative'],
+    index: true
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: true,
+    index: true
   }
 }, {
   timestamps: true
 });
 
-// ✅ KEEP: Essential indexes for search optimization
-rawMaterialSchema.index({ name: 'text', description: 'text', category: 'text', subcategory: 'text' });
-rawMaterialSchema.index({ category: 1, subcategory: 1 });
-rawMaterialSchema.index({ createdBy: 1 });
+// Compound indexes for efficient queries
+rawMaterialSchema.index({ category: 1, subcategory: 1, isActive: 1 });
+rawMaterialSchema.index({ createdBy: 1, isActive: 1 });
 rawMaterialSchema.index({ createdAt: -1 });
-rawMaterialSchema.index({ ratings: -1 }); // Index for sorting by ratings
-rawMaterialSchema.index({ numReviews: -1 }); // Index for sorting by review count
+rawMaterialSchema.index({ ratings: -1, numReviews: -1 });
+rawMaterialSchema.index({ price: 1 });
+rawMaterialSchema.index({ quantity: 1 });
+
+// Text index for search
+rawMaterialSchema.index({ 
+  name: 'text', 
+  description: 'text', 
+  category: 'text', 
+  subcategory: 'text' 
+});
+
+// Virtual for checking if material is in stock
+rawMaterialSchema.virtual('inStock').get(function() {
+  return this.quantity > 0;
+});
+
+// Virtual for checking if material has low stock
+rawMaterialSchema.virtual('lowStock').get(function() {
+  return this.quantity > 0 && this.quantity <= 5;
+});
+
+// Pre-save middleware to calculate discount
+rawMaterialSchema.pre('save', function(next) {
+  if (this.originalPrice && this.originalPrice > this.price) {
+    this.discount = Math.round(((this.originalPrice - this.price) / this.originalPrice) * 100);
+  } else {
+    this.discount = 0;
+  }
+  next();
+});
+
+// Static method to find available materials by supplier
+rawMaterialSchema.statics.findAvailableBySupplier = function(supplierId) {
+  return this.find({ 
+    createdBy: supplierId, 
+    isActive: true,
+    quantity: { $gt: 0 }
+  });
+};
+
+// Instance method to check if material is available in requested quantity
+rawMaterialSchema.methods.isAvailable = function(requestedQuantity) {
+  return this.isActive && this.quantity >= requestedQuantity;
+};
+
+// Transform for JSON output
+rawMaterialSchema.set('toJSON', {
+  virtuals: true,
+  transform: function(doc, ret) {
+    delete ret.__v;
+    return ret;
+  }
+});
+
 const RawMaterial = mongoose.models.RawMaterial || mongoose.model('RawMaterial', rawMaterialSchema);
 
 export default RawMaterial;

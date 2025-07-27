@@ -54,7 +54,7 @@ export default function SupplierAnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setIsRefreshing(true)
-      const response = await fetch(`/api/supplier/dashboard-stats?timeRange=${timeRange}`)
+      const response = await fetch(`/api/supplier/analytics?timeRange=${timeRange}`)
       const data = await response.json()
 
       if (!response.ok) {
@@ -64,7 +64,7 @@ export default function SupplierAnalyticsPage() {
       // Safely merge fetched data with the initial state
       setAnalyticsData(prevData => ({
         ...prevData,
-        ...data,
+        ...data.data, // Access the nested data object
         stats: { ...prevData.stats, ...data.stats },
         insights: { ...prevData.insights, ...data.insights },
       }))

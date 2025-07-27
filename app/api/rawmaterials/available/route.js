@@ -22,28 +22,35 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Update ratings for all materials and process them
-    const processedMaterials = await Promise.all(rawMaterials.map(async (material) => {
-      // Get current reviews for this material
-      const allReviews = await Review.find({ 
-        rawMaterialId: material._id, 
-        isActive: true 
-      });
+    // Get all material IDs for batch review query
+    const materialIds = rawMaterials.map(material => material._id);
 
+    // Batch fetch all reviews for all materials
+    const allReviews = await Review.find({ 
+      rawMaterialId: { $in: materialIds }, 
+      isActive: true 
+    }).lean();
+
+    // Create a map of material ID to reviews for efficient lookup
+    const reviewsMap = new Map();
+    allReviews.forEach(review => {
+      const materialId = review.rawMaterialId.toString();
+      if (!reviewsMap.has(materialId)) {
+        reviewsMap.set(materialId, []);
+      }
+      reviewsMap.get(materialId).push(review);
+    });
+
+    // Process materials with reviews data
+    const processedMaterials = rawMaterials.map((material) => {
+      const materialReviews = reviewsMap.get(material._id.toString()) || [];
+      
       let currentRatings = 0;
-      let currentNumReviews = allReviews.length;
+      let currentNumReviews = materialReviews.length;
 
       if (currentNumReviews > 0) {
-        const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+        const totalRating = materialReviews.reduce((sum, review) => sum + review.rating, 0);
         currentRatings = totalRating / currentNumReviews;
-      }
-
-      // Update the raw material in database if ratings don't match
-      if (material.ratings !== currentRatings || material.numReviews !== currentNumReviews) {
-        await RawMaterial.findByIdAndUpdate(material._id, {
-          ratings: currentRatings,
-          numReviews: currentNumReviews
-        });
       }
 
       // Calculate discount percentage if originalPrice exists
@@ -58,8 +65,6 @@ export async function GET() {
         // Handle both old format (direct URL) and new format (object with url property)
         mainImage = typeof material.images[0] === 'string' ? material.images[0] : material.images[0].url;
       }
-
-      console.log(`Material ${material.name}: updated ratings=${currentRatings}, numReviews=${currentNumReviews}`);
 
       return {
         ...material,
@@ -76,7 +81,7 @@ export async function GET() {
           material.tags.split(',').map(t => t.trim()).filter(t => t) : 
           material.tags || []
       };
-    }));
+    });
 
     return NextResponse.json({
       success: true,

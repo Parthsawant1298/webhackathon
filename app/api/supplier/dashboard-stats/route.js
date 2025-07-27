@@ -1,4 +1,4 @@
-// app/api/supplier/dashboard-stats/route.js
+// app/api/supplier/dashboard-stats/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -27,8 +27,37 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
 
+    // Get all raw materials for this supplier
     const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id').lean();
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
+
+    if (supplierRawMaterialIds.length === 0) {
+      // Return default stats if no raw materials
+      return NextResponse.json({
+        success: true,
+        stats: {
+          totalRawMaterials: 0,
+          totalVendors: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          lowStockRawMaterials: 0,
+          outOfStockRawMaterials: 0,
+          processingOrders: 0,
+          deliveredOrders: 0,
+          paymentFailedOrders: 0,
+        },
+        recentRawMaterials: [],
+        recentOrders: [],
+        recentActivity: [],
+        categoryStats: [],
+        monthlyRevenue: [],
+        insights: {
+          averageOrderValue: 0,
+          conversionRate: 0,
+          topCategory: "No raw materials yet",
+        }
+      });
+    }
 
     const [
       totalRawMaterials,
@@ -45,32 +74,54 @@ export async function GET(request) {
       deliveredOrdersCount,
       paymentFailedOrdersCount
     ] = await Promise.all([
-      RawMaterial.countDocuments({ createdBy: supplierId }),
+      // Total raw materials
+      RawMaterial.countDocuments({ createdBy: supplierId, isActive: true }),
       
-      Order.distinct('user', { 'items.rawMaterial': { $in: supplierRawMaterialIds } }),
+      // Total unique vendors who ordered from this supplier
+      Order.distinct('user', { 
+        'items.rawMaterial': { $in: supplierRawMaterialIds },
+        paymentStatus: 'completed'
+      }),
       
+      // Total orders containing this supplier's materials
       Order.countDocuments({ 'items.rawMaterial': { $in: supplierRawMaterialIds } }),
       
+      // Total revenue from completed orders
       Order.aggregate([
-        { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds }, paymentStatus: 'completed' } },
+        { 
+          $match: { 
+            'items.rawMaterial': { $in: supplierRawMaterialIds }, 
+            paymentStatus: 'completed' 
+          } 
+        },
         { $unwind: '$items' },
         { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
-        { $group: { _id: null, totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } }
+        { 
+          $group: { 
+            _id: null, 
+            totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } 
+          } 
+        }
       ]),
       
-      RawMaterial.find({ createdBy: supplierId })
+      // Recent raw materials
+      RawMaterial.find({ createdBy: supplierId, isActive: true })
         .sort({ createdAt: -1 })
         .limit(5)
-        .select('name category subcategory price quantity createdAt mainImage'),
+        .select('name category subcategory price quantity createdAt mainImage')
+        .lean(),
       
+      // Recent orders containing supplier's materials
       Order.find({ 'items.rawMaterial': { $in: supplierRawMaterialIds } })
         .sort({ createdAt: -1 })
         .limit(5)
         .populate('user', 'vendorName email')
-        .select('totalAmount status paymentStatus createdAt'),
+        .select('totalAmount status paymentStatus createdAt user')
+        .lean(),
       
+      // Category statistics
       RawMaterial.aggregate([
-        { $match: { createdBy: supplierId } },
+        { $match: { createdBy: supplierId, isActive: true } },
         {
           $group: {
             _id: '$category',
@@ -81,6 +132,7 @@ export async function GET(request) {
         { $sort: { count: -1 } }
       ]),
       
+      // Monthly revenue for last 6 months
       Order.aggregate([
         {
           $match: {
@@ -107,21 +159,45 @@ export async function GET(request) {
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
       
-      RawMaterial.countDocuments({ createdBy: supplierId, quantity: { $lte: 5, $gt: 0 } }),
+      // Low stock materials (≤5 items)
+      RawMaterial.countDocuments({ 
+        createdBy: supplierId, 
+        isActive: true,
+        quantity: { $lte: 5, $gt: 0 } 
+      }),
       
-      RawMaterial.countDocuments({ createdBy: supplierId, quantity: 0 }),
+      // Out of stock materials
+      RawMaterial.countDocuments({ 
+        createdBy: supplierId, 
+        isActive: true,
+        quantity: 0 
+      }),
       
-      Order.countDocuments({ 'items.rawMaterial': { $in: supplierRawMaterialIds }, status: 'processing' }),
+      // Processing orders
+      Order.countDocuments({ 
+        'items.rawMaterial': { $in: supplierRawMaterialIds }, 
+        status: 'processing' 
+      }),
 
-      Order.countDocuments({ 'items.rawMaterial': { $in: supplierRawMaterialIds }, status: 'delivered' }),
+      // Delivered orders
+      Order.countDocuments({ 
+        'items.rawMaterial': { $in: supplierRawMaterialIds }, 
+        status: 'delivered' 
+      }),
       
-      Order.countDocuments({ 'items.rawMaterial': { $in: supplierRawMaterialIds }, paymentStatus: 'failed' })
+      // Payment failed orders
+      Order.countDocuments({ 
+        'items.rawMaterial': { $in: supplierRawMaterialIds }, 
+        paymentStatus: 'failed' 
+      })
     ]);
 
     const totalRevenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
     
+    // Create recent activity from materials and orders
     const recentActivity = [];
     
+    // Add recent orders to activity
     const recentOrdersActivity = recentOrders.map(order => ({
       type: 'order',
       description: `New order ₹${order.totalAmount.toLocaleString()} from ${order.user?.vendorName || 'Unknown Vendor'}`,
@@ -129,6 +205,7 @@ export async function GET(request) {
       status: order.status
     }));
     
+    // Add recent materials to activity
     const recentRawMaterialsActivity = recentRawMaterials.map(material => ({
       type: 'rawmaterial',
       description: `New raw material "${material.name}" added to ${material.category}`,

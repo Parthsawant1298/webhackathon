@@ -1,4 +1,4 @@
-// app/api/cart/route.js - FINAL CORRECTED VERSION
+// app/api/cart/route.js - FIXED VERSION
 import connectDB from '@/lib/mongodb';
 import Cart from '@/models/cart';
 import RawMaterial from '@/models/rawMaterial';
@@ -35,11 +35,12 @@ export async function POST(request) {
       );
     }
 
+    // Check if raw material exists and is active
     const rawMaterial = await RawMaterial.findById(rawMaterialId);
     
-    if (!rawMaterial) {
+    if (!rawMaterial || !rawMaterial.isActive) {
       return NextResponse.json(
-        { success: false, error: 'Raw material not found' },
+        { success: false, error: 'Raw material not found or no longer available' },
         { status: 404 }
       );
     }
@@ -117,7 +118,11 @@ export async function GET(request) {
     }
 
     const cart = await Cart.findOne({ user: userId })
-      .populate('items.rawMaterial', 'name price mainImage quantity')
+      .populate({
+        path: 'items.rawMaterial',
+        select: 'name price mainImage quantity isActive',
+        match: { isActive: true } // Only get active raw materials
+      })
       .lean();
 
     if (!cart) {
@@ -125,23 +130,19 @@ export async function GET(request) {
         success: true,
         cart: {
           items: [],
-          totalQuantity: 0,
+          totalItems: 0,
           totalPrice: 0
         }
       });
     }
 
+    // Filter out items where rawMaterial is null (inactive/deleted materials)
     const validItems = cart.items.filter(item => item.rawMaterial !== null);
 
     let totalPrice = 0;
-    validItems.forEach(item => {
-      if (item.rawMaterial && item.rawMaterial.price) {
-        totalPrice += item.rawMaterial.price * item.quantity;
-      }
-    });
-
     const itemsWithAvailability = validItems.map(item => {
-      if (!item.rawMaterial) return item;
+      const itemTotal = item.rawMaterial.price * item.quantity;
+      totalPrice += itemTotal;
       
       return {
         ...item,
@@ -149,6 +150,18 @@ export async function GET(request) {
         hasStockIssue: item.quantity > item.rawMaterial.quantity
       };
     });
+
+    // If we removed any items, update the cart
+    if (validItems.length !== cart.items.length) {
+      await Cart.findOneAndUpdate(
+        { user: userId },
+        { items: validItems.map(item => ({
+          rawMaterial: item.rawMaterial._id,
+          quantity: item.quantity,
+          addedAt: item.addedAt
+        })) }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -217,7 +230,7 @@ export async function PUT(request) {
     }
 
     const rawMaterial = await RawMaterial.findById(rawMaterialId);
-    if (!rawMaterial || quantity > rawMaterial.quantity) {
+    if (!rawMaterial || !rawMaterial.isActive || quantity > rawMaterial.quantity) {
       return NextResponse.json(
         { success: false, error: 'Insufficient quantity available' },
         { status: 400 }

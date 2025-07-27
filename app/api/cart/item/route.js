@@ -1,4 +1,4 @@
-// app/api/cart/item/route.js - FINAL CORRECTED VERSION
+// app/api/cart/item/route.js - COMPLETE FIXED VERSION
 import connectDB from '@/lib/mongodb';
 import Cart from '@/models/cart';
 import RawMaterial from '@/models/rawMaterial';
@@ -29,11 +29,11 @@ export async function PUT(request) {
     
     await connectDB();
     
-    // Check if raw material exists and has enough stock
+    // Check if raw material exists, is active, and has enough stock
     const rawMaterial = await RawMaterial.findById(rawMaterialId);
-    if (!rawMaterial) {
+    if (!rawMaterial || !rawMaterial.isActive) {
       return NextResponse.json(
-        { error: 'Raw material not found' },
+        { error: 'Raw material not found or no longer available' },
         { status: 404 }
       );
     }
@@ -78,20 +78,17 @@ export async function PUT(request) {
     const updatedCart = await Cart.findById(cart._id)
       .populate({
         path: 'items.rawMaterial',
-        select: 'name price mainImage quantity'
+        select: 'name price mainImage quantity isActive',
+        match: { isActive: true }
       });
       
-    // Calculate total
+    // Filter out inactive materials and calculate total
+    const validItems = updatedCart.items.filter(item => item.rawMaterial !== null);
     let totalPrice = 0;
-    updatedCart.items.forEach(item => {
-      if (item.rawMaterial && item.rawMaterial.price) {
-        totalPrice += item.rawMaterial.price * item.quantity;
-      }
-    });
     
-    // Add availability information to each item
-    const itemsWithAvailability = updatedCart.items.map(item => {
-      if (!item.rawMaterial) return item;
+    const itemsWithAvailability = validItems.map(item => {
+      const itemTotal = item.rawMaterial.price * item.quantity;
+      totalPrice += itemTotal;
       
       return {
         ...item.toObject ? item.toObject() : item,
@@ -106,7 +103,7 @@ export async function PUT(request) {
       cart: {
         _id: updatedCart._id,
         items: itemsWithAvailability,
-        totalItems: updatedCart.items.length,
+        totalItems: validItems.length,
         totalPrice
       }
     });
@@ -164,12 +161,15 @@ export async function DELETE(request) {
     const updatedCart = await Cart.findById(cart._id)
       .populate({
         path: 'items.rawMaterial',
-        select: 'name price mainImage quantity'
+        select: 'name price mainImage quantity isActive',
+        match: { isActive: true }
       });
       
-    // Calculate total
+    // Filter out inactive materials and calculate total
+    const validItems = updatedCart.items.filter(item => item.rawMaterial !== null);
     let totalPrice = 0;
-    updatedCart.items.forEach(item => {
+    
+    validItems.forEach(item => {
       if (item.rawMaterial && item.rawMaterial.price) {
         totalPrice += item.rawMaterial.price * item.quantity;
       }
@@ -180,8 +180,8 @@ export async function DELETE(request) {
       message: 'Item removed from cart',
       cart: {
         _id: updatedCart._id,
-        items: updatedCart.items,
-        totalItems: updatedCart.items.length,
+        items: validItems,
+        totalItems: validItems.length,
         totalPrice
       }
     });

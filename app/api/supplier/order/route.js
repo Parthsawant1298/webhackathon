@@ -1,4 +1,4 @@
-// app/api/supplier/orders/route.js
+// app/api/supplier/order/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -27,8 +27,30 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
 
-    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id').lean();
+    // Get all raw material IDs for this supplier
+    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id');
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
+
+    if (supplierRawMaterialIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        orders: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        stats: {
+          totalOrders: 0,
+          totalRevenue: 0,
+          processingOrders: 0,
+          deliveredOrders: 0,
+          paymentFailedOrders: 0
+        }
+      });
+    }
 
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page')) || 1;
@@ -41,38 +63,30 @@ export async function GET(request) {
     const sortBy = url.searchParams.get('sortBy') || 'createdAt';
     const sortOrder = url.searchParams.get('sortOrder') || 'desc';
 
-    const filter = {
+    // Build filter for orders containing supplier's raw materials
+    const baseFilter = {
       'items.rawMaterial': { $in: supplierRawMaterialIds }
     };
     
     if (status && status !== 'all') {
-      filter.status = status;
+      baseFilter.status = status;
     }
     
     if (paymentStatus && paymentStatus !== 'all') {
-      filter.paymentStatus = paymentStatus;
+      baseFilter.paymentStatus = paymentStatus;
     }
     
     if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
-    }
-
-    let userFilter = {};
-    if (search) {
-      userFilter = {
-        $or: [
-          { 'userDetails.vendorName': { $regex: search, $options: 'i' } },
-          { 'userDetails.email': { $regex: search, $options: 'i' } }
-        ]
-      };
+      baseFilter.createdAt = {};
+      if (startDate) baseFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) baseFilter.createdAt.$lte = new Date(endDate);
     }
 
     const skip = (page - 1) * limit;
 
-    const pipeline = [
-      { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+    // Pipeline for aggregating orders with user search
+    let pipeline = [
+      { $match: baseFilter },
       {
         $lookup: {
           from: 'users',
@@ -81,9 +95,7 @@ export async function GET(request) {
           as: 'userDetails'
         }
       },
-      {
-        $unwind: '$userDetails'
-      },
+      { $unwind: '$userDetails' },
       {
         $lookup: {
           from: 'rawmaterials',
@@ -91,44 +103,62 @@ export async function GET(request) {
           foreignField: '_id',
           as: 'rawMaterialDetails'
         }
-      },
-      {
-        $addFields: {
-          items: {
-            $map: {
-              input: '$items',
-              as: 'item',
-              in: {
-                $mergeObjects: [
-                  '$$item',
+      }
+    ];
+
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'userDetails.vendorName': { $regex: search, $options: 'i' } },
+            { 'userDetails.email': { $regex: search, $options: 'i' } }
+          ]
+        }
+      });
+    }
+
+    // Add items processing to include raw material details
+    pipeline.push({
+      $addFields: {
+        items: {
+          $map: {
+            input: '$items',
+            as: 'item',
+            in: {
+              rawMaterial: {
+                $arrayElemAt: [
                   {
-                    rawMaterialDetails: {
-                      $arrayElemAt: [
-                        {
-                          $filter: {
-                            input: '$rawMaterialDetails',
-                            cond: { $eq: ['$$this._id', '$$item.rawMaterial'] }
-                          }
-                        },
-                        0
-                      ]
+                    $filter: {
+                      input: '$rawMaterialDetails',
+                      cond: { $eq: ['$$this._id', '$$item.rawMaterial'] }
                     }
-                  }
+                  },
+                  0
                 ]
-              }
+              },
+              quantity: '$$item.quantity',
+              price: '$$item.price'
             }
           }
         }
-      },
-      {
-        $match: {
-          ...filter,
-          ...(search ? userFilter : {})
-        }
-      },
-      {
-        $sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 }
-      },
+      }
+    });
+
+    // Remove rawMaterialDetails field as it's now embedded in items
+    pipeline.push({
+      $project: {
+        rawMaterialDetails: 0
+      }
+    });
+
+    // Sort
+    const sortDirection = sortOrder === 'desc' ? -1 : 1;
+    pipeline.push({ $sort: { [sortBy]: sortDirection } });
+
+    // Execute pipeline with pagination
+    const [ordersResult] = await Order.aggregate([
+      ...pipeline,
       {
         $facet: {
           orders: [
@@ -140,15 +170,15 @@ export async function GET(request) {
           ]
         }
       }
-    ];
+    ]);
 
-    const [result] = await Order.aggregate(pipeline);
-    const orders = result.orders || [];
-    const totalCount = result.totalCount[0]?.count || 0;
+    const orders = ordersResult.orders || [];
+    const totalCount = ordersResult.totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    const stats = await Order.aggregate([
-      { $match: { 'items.rawMaterial': { $in: supplierRawMaterialIds } } },
+    // Calculate stats
+    const statsResult = await Order.aggregate([
+      { $match: baseFilter },
       {
         $group: {
           _id: null,
@@ -181,6 +211,14 @@ export async function GET(request) {
       }
     ]);
 
+    const stats = statsResult[0] || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      processingOrders: 0,
+      deliveredOrders: 0,
+      paymentFailedOrders: 0
+    };
+
     return NextResponse.json({
       success: true,
       orders,
@@ -191,13 +229,7 @@ export async function GET(request) {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
       },
-      stats: stats[0] || {
-        totalOrders: 0,
-        totalRevenue: 0,
-        processingOrders: 0,
-        deliveredOrders: 0,
-        paymentFailedOrders: 0
-      }
+      stats
     });
 
   } catch (error) {
@@ -245,6 +277,19 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Invalid payment status' }, { status: 400 });
     }
 
+    // Verify this order contains supplier's raw materials
+    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id');
+    const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
+
+    const order = await Order.findOne({
+      _id: orderId,
+      'items.rawMaterial': { $in: supplierRawMaterialIds }
+    });
+
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found or unauthorized' }, { status: 404 });
+    }
+
     const updateData = {};
     if (status) updateData.status = status;
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
@@ -255,10 +300,6 @@ export async function PUT(request) {
       updateData,
       { new: true }
     ).populate('user', 'vendorName email');
-
-    if (!updatedOrder) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,4 @@
-// app/api/payment/create/route.js
+// app/api/payment/create/route.js - FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import Razorpay from 'razorpay';
@@ -41,8 +41,13 @@ export async function POST(request) {
     
     await connectDB();
     
-    // Get user's cart
-    const cart = await Cart.findOne({ user: userId }).populate('items.rawMaterial');
+    // Get user's cart with populated raw materials
+    const cart = await Cart.findOne({ user: userId })
+      .populate({
+        path: 'items.rawMaterial',
+        select: 'name price quantity isActive mainImage',
+        match: { isActive: true } // Only get active raw materials
+      });
     
     if (!cart || cart.items.length === 0) {
       return NextResponse.json(
@@ -51,56 +56,92 @@ export async function POST(request) {
       );
     }
     
+    // Filter out items where rawMaterial is null (inactive/deleted materials)
+    const validItems = cart.items.filter(item => item.rawMaterial !== null);
+    
+    if (validItems.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid items in cart. Some materials may no longer be available.' },
+        { status: 400 }
+      );
+    }
+    
     // Verify raw material availability at checkout time
     const availabilityIssues = [];
     
-    for (const item of cart.items) {
-      if (!item.rawMaterial) {
+    for (const item of validItems) {
+      // Double-check availability with fresh data from database
+      const freshMaterial = await RawMaterial.findById(item.rawMaterial._id);
+      
+      if (!freshMaterial || !freshMaterial.isActive) {
         availabilityIssues.push({
-          rawMaterialId: null,
-          name: 'Unknown Raw Material',
-          requestedQuantity: item.quantity, 
+          rawMaterialId: item.rawMaterial._id,
+          name: item.rawMaterial.name,
+          requestedQuantity: item.quantity,
           availableQuantity: 0,
-          message: 'Raw material no longer exists'
+          message: 'Raw material no longer available'
         });
         continue;
       }
       
       // Check against actual raw material quantity
-      if (item.rawMaterial.quantity < item.quantity) {
+      if (freshMaterial.quantity < item.quantity) {
         availabilityIssues.push({
-          rawMaterialId: item.rawMaterial._id,
-          name: item.rawMaterial.name,
+          rawMaterialId: freshMaterial._id,
+          name: freshMaterial.name,
           requestedQuantity: item.quantity,
-          availableQuantity: item.rawMaterial.quantity,
-          message: `Only ${item.rawMaterial.quantity} units available`
+          availableQuantity: freshMaterial.quantity,
+          message: `Only ${freshMaterial.quantity} units available`
         });
       }
     }
     
     // If there are availability issues, return them
     if (availabilityIssues.length > 0) {
+      // Update cart to remove invalid items
+      const validItemIds = validItems
+        .filter(item => !availabilityIssues.some(issue => 
+          issue.rawMaterialId.toString() === item.rawMaterial._id.toString()
+        ))
+        .map(item => ({
+          rawMaterial: item.rawMaterial._id,
+          quantity: item.quantity,
+          addedAt: item.addedAt
+        }));
+      
+      await Cart.findByIdAndUpdate(cart._id, { items: validItemIds });
+      
       return NextResponse.json({ 
         error: 'Some raw materials in your cart are no longer available in the requested quantity',
         availabilityIssues 
       }, { status: 400 });
     }
     
-    // Calculate total amount
+    // Calculate total amount using fresh material data
     let totalAmount = 0;
-    const orderItems = cart.items.map(item => {
-      const itemTotal = item.rawMaterial.price * item.quantity;
+    const orderItems = [];
+    
+    for (const item of validItems) {
+      const freshMaterial = await RawMaterial.findById(item.rawMaterial._id);
+      const itemTotal = freshMaterial.price * item.quantity;
       totalAmount += itemTotal;
       
-      return {
-        rawMaterial: item.rawMaterial._id,
+      orderItems.push({
+        rawMaterial: freshMaterial._id,
         quantity: item.quantity,
-        price: item.rawMaterial.price
-      };
-    });
+        price: freshMaterial.price
+      });
+    }
     
     // Get shipping address from request
     const { shippingAddress } = await request.json();
+    
+    if (!shippingAddress || !shippingAddress.name || !shippingAddress.address) {
+      return NextResponse.json(
+        { error: 'Shipping address is required' },
+        { status: 400 }
+      );
+    }
     
     // Create a pending order
     const order = await Order.create({

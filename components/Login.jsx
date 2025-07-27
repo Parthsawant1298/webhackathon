@@ -48,7 +48,7 @@ export default function Login() {
         }
       } catch (error) {
         // User not logged in, continue with login form
-        console.log('User not authenticated, showing login form');
+        // Silently handle auth check failure
       }
     };
 
@@ -98,16 +98,12 @@ export default function Login() {
       }
 
       if (data.success) {
-        // Show success message briefly
-        console.log('Login successful:', data.message);
-        
         // Small delay to show success state, then redirect
         setTimeout(() => {
           router.push(redirectTo);
         }, 100);
       }
     } catch (error) {
-      console.error('Login error:', error);
       setError(error.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
