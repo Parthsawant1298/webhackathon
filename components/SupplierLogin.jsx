@@ -132,6 +132,25 @@ export default function SupplierLogin() {
                                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back Supplier</h2>
                                 <p className="text-gray-600">Sign in to access your SupplyMind account and manage your supply network</p>
                             </div>
+
+                            {/* Test Credentials Note */}
+                            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+                                <div className="text-sm text-green-800">
+                                    <p className="font-medium mb-2">Test Supplier Credentials:</p>
+                                    <div className="space-y-2 text-xs">
+                                        <div>
+                                            <p><strong>Supplier 1:</strong></p>
+                                            <p>• Email: thanemasala.kharkar@gmail.com</p>
+                                            <p>• Password: abc@123</p>
+                                        </div>
+                                        <div>
+                                            <p><strong>Supplier 2:</strong></p>
+                                            <p>• Email: sitaramagro.flavours@gmail.com</p>
+                                            <p>• Password: sitaram$78</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <div className="space-y-5">
                                 <Input

@@ -1,6 +1,6 @@
 // components/Header.jsx - UPDATED with Order History
 "use client"
-
+import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, LogOut, Menu, Package, ShoppingCart, User, X } from 'lucide-react'
 import Link from 'next/link'
@@ -118,14 +118,15 @@ export default function Header() {
    >
      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
        <Link href="/" className="text-xl font-bold flex items-center group" style={{color: '#347433'}}>
-         <svg className="w-6 h-6 mr-1 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-           <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-           <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-           <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-         </svg>
-         <span className="font-poppins tracking-tight">SupplyMind</span>
-       </Link>
-       
+      <Image 
+        src="/logo.jpg" 
+        alt="SupplyMind Logo" 
+        width={32}
+        height={32}
+        className="w-8 h-8 mr-2" 
+      />
+      <span className="font-poppins tracking-tight">SupplyMind</span>
+      </Link>
        {/* Main navigation */}
        <nav className="hidden md:flex items-center space-x-8 mx-auto">
          <Link href="/" className="text-gray-700 hover:text-green-700 transition-colors py-2 relative group">

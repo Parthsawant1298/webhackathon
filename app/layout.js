@@ -19,7 +19,6 @@ export const metadata = {
   creator: "SupplyMind",
   publisher: "SupplyMind",
   robots: "index, follow",
-  viewport: "width=device-width, initial-scale=1",
   category: "Business",
   classification: "B2B Marketplace",
   language: "en-IN",

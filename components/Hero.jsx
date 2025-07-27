@@ -15,8 +15,7 @@ const SupplyMindHeroBanner = () => {
       subtitle: "Raw Material Sourcing",
       description:
         "Connect street food vendors with verified suppliers through our anonymous AI marketplace. Get real-time inventory analysis, smart recommendations, and guaranteed surplus buyback.",
-      image:
-        "https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80",
+      image: "/hero-slide-1.jpg",
       stats: { value: "₹8,000Cr", label: "Daily Market Size" },
     },
     {
@@ -25,19 +24,8 @@ const SupplyMindHeroBanner = () => {
       subtitle: "Guaranteed Protection",
       description:
         "Shop with complete anonymity while accessing verified supplier details. Our one-way protection system ensures vendor safety with transparent supplier information.",
-      image:
-        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80",
+      image: "/hero-slide-2.jpg",
       stats: { value: "100%", label: "Privacy Protected" },
-    },
-    {
-      badge: "📱 Smart Inventory Management",
-      title: "AI Vision",
-      subtitle: "Scanner Technology",
-      description:
-        "Point your camera at your stall and let our AI analyze inventory levels, predict demand, and recommend optimal purchases from nearby verified suppliers.",
-      image:
-        "https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80",
-      stats: { value: "95%", label: "Accuracy Rate" },
     },
     {
       badge: "♻️ Zero Waste Guarantee",
@@ -45,8 +33,7 @@ const SupplyMindHeroBanner = () => {
       subtitle: "Program",
       description:
         "Never worry about excess inventory again. Our platform guarantees to purchase your surplus materials at fair prices, creating a circular economy for all participants.",
-      image:
-        "https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80",
+      image: "/hero-slide-4.jpeg",
       stats: { value: "Zero", label: "Waste Guaranteed" },
     },
   ]
@@ -86,7 +73,6 @@ const SupplyMindHeroBanner = () => {
 
   return (
     <div className="relative w-full h-[400px] sm:h-[450px] lg:h-[500px] overflow-hidden">
-      {/* Background Images with Parallax Effect */}
       <div className="absolute inset-0 w-full h-full">
         {slides.map((slide, index) => (
           <div
@@ -96,29 +82,24 @@ const SupplyMindHeroBanner = () => {
             }`}
           >
             <img
-              src={slide.image || "/placeholder.svg"}
+              src={slide.image || "/placeholder.jpg"}
               alt="SupplyMind Platform"
               className="object-cover w-full h-full"
             />
-            {/* Modern gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-transparent"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
           </div>
         ))}
       </div>
 
-      {/* Main Content */}
       <div className="relative z-10 h-full flex items-center">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-12 gap-4 sm:gap-6 items-center">
-            {/* Left Content */}
             <div className="lg:col-span-7 space-y-3 sm:space-y-4">
-              {/* Animated Badge */}
               <div className="inline-flex items-center px-4 py-2 backdrop-blur-md border rounded-full animate-pulse" style={{backgroundColor: 'rgba(52, 116, 51, 0.2)', borderColor: 'rgba(52, 116, 51, 0.3)'}}>
                 <span className="text-xs sm:text-sm font-medium" style={{color: '#7dd87e'}}>{slides[currentSlide].badge}</span>
               </div>
 
-              {/* Hero Title with Animation */}
               <div className="space-y-2">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white leading-tight">
                   <span className="block opacity-90">{slides[currentSlide].title}</span>
@@ -128,26 +109,23 @@ const SupplyMindHeroBanner = () => {
                 </h1>
               </div>
 
-              {/* Description */}
               <p className="text-sm sm:text-base lg:text-lg text-gray-200 leading-relaxed max-w-2xl">
                 {slides[currentSlide].description}
               </p>
 
-              {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <button className="group px-4 py-2 sm:px-6 sm:py-3 text-white rounded-xl font-semibold text-sm sm:text-base shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2" style={{background: 'linear-gradient(to right, #347433, #2d5f2d)', boxShadow: '0 10px 25px rgba(52, 116, 51, 0.3)'}}>
+                <a href="/rawmaterials" className="group px-4 py-2 sm:px-6 sm:py-3 text-white rounded-xl font-semibold text-sm sm:text-base shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-2" style={{background: 'linear-gradient(to right, #347433, #2d5f2d)', boxShadow: '0 10px 25px rgba(52, 116, 51, 0.3)'}}>
                   <span>Get Started</span>
                   <div className="w-2 h-2 bg-white rounded-full group-hover:animate-ping"></div>
-                </button>
+                </a>
 
-                <button className="group px-4 py-2 sm:px-6 sm:py-3 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center space-x-2" style={{'--hover-border-color': 'rgba(52, 116, 51, 0.5)'}} onMouseEnter={(e) => e.target.style.borderColor = 'rgba(52, 116, 51, 0.5)'} onMouseLeave={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}>
+                <a href="/about" className="group px-4 py-2 sm:px-6 sm:py-3 bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 text-white rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 flex items-center justify-center space-x-2" style={{'--hover-border-color': 'rgba(52, 116, 51, 0.5)'}} onMouseEnter={(e) => e.target.style.borderColor = 'rgba(52, 116, 51, 0.5)'} onMouseLeave={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}>
                   <Play className="h-5 w-5" />
                   <span>Learn More</span>
-                </button>
+                </a>
               </div>
             </div>
 
-            {/* Right Stats Card */}
             <div className="lg:col-span-5 flex justify-end">
               <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 sm:p-6 text-center transform hover:scale-105 transition-all duration-300">
                 <div className="text-2xl sm:text-3xl font-bold mb-2" style={{color: '#7dd87e'}}>
@@ -161,7 +139,6 @@ const SupplyMindHeroBanner = () => {
         </div>
       </div>
 
-      {/* Navigation Controls */}
       <button
         onClick={prevSlide}
         className="absolute left-6 top-1/2 transform -translate-y-1/2 z-20 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white p-2 sm:p-3 rounded-full transition-all duration-300 hover:scale-110 border border-white/20"
@@ -178,7 +155,6 @@ const SupplyMindHeroBanner = () => {
         <ChevronRight className="h-6 w-6" />
       </button>
 
-      {/* Modern Slide Indicators */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
         {slides.map((_, index) => (
           <button
@@ -195,7 +171,6 @@ const SupplyMindHeroBanner = () => {
         ))}
       </div>
 
-      {/* Animated Progress Bar */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-black/20 z-20">
         <div
           className="h-full transition-all duration-300 ease-linear shadow-lg"
@@ -207,7 +182,6 @@ const SupplyMindHeroBanner = () => {
         />
       </div>
 
-      {/* Floating Elements */}
       <div className="absolute top-20 right-8 z-10 hidden lg:block">
         <div className="w-20 h-20 rounded-full animate-pulse" style={{backgroundColor: 'rgba(52, 116, 51, 0.2)'}}></div>
       </div>
