@@ -61,7 +61,7 @@ export default function WhyChooseUs() {
   }
 
   const handleCategoryClick = () => {
-    router.push('/products')
+    router.push('/rawmaterials')
   }
 
   const handleContactClick = () => {

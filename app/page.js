@@ -9,6 +9,9 @@ import Lowerfooter from '@/components/Lowerfooter';
 import Partner from '@/components/Partner';
 import NewArrivals from '@/components/NewArrivals';
 import TopRawMaterials from '@/components/TopRawMaterials';
+import Gallery from '@/components/Gallary';
+import Services from '@/components/Services';
+import Testimonials from '@/components/Testimonial';
 export default function page(){
   return(
     <main>
@@ -18,10 +21,14 @@ export default function page(){
       <NewArrivals />
       <TopRawMaterials />
       <WhyChooseUs />
-      <Pricing />
-      <Lowerfooter />
-      <Partner />
+       <Services />
+       <Partner />
+        <Pricing />
+       <Lowerfooter />
+      <Testimonials/>
+      <Gallery/>
       <Footer />
     </main>
   );
 }
+      
