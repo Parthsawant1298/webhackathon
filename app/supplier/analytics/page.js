@@ -1,27 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  ShoppingCart,
-  Users,
-  Calendar,
-  PieChart,
-  Target,
-  Award,
-  RefreshCw,
-  Download,
-  Package,
-  CreditCard,
-  Mail,
-  Activity,
-  AlertTriangle,
-} from "lucide-react"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 import SupplierHeader from "@/components/SupplierHeader"
+import {
+    Activity,
+    AlertTriangle,
+    Award,
+    BarChart2,
+    Calendar,
+    CreditCard,
+    DollarSign,
+    Download,
+    Mail,
+    Package,
+    PieChart,
+    RefreshCw,
+    ShoppingCart,
+    Target,
+    TrendingDown,
+    TrendingUp,
+    Users,
+} from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 export default function SupplierAnalyticsPage() {
   const router = useRouter()
@@ -373,6 +374,15 @@ export default function SupplierAnalyticsPage() {
 
       <main className="flex-grow py-4 sm:py-6 lg:py-8">
         <div className="container mx-auto px-2 sm:px-4">
+          {/* Empty state for analytics */}
+          {(!analyticsData.dailyRevenue || analyticsData.dailyRevenue.length === 0) &&
+            (!analyticsData.monthlyRevenue || analyticsData.monthlyRevenue.length === 0) && (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+              <BarChart2 size={48} className="mb-4 text-gray-300" />
+              <p className="text-lg font-semibold">No analytics data available</p>
+              <p className="text-sm mt-2">Analytics will appear once you have orders and sales activity.</p>
+            </div>
+          )}
           {/* Header */}
           <div className="mb-4 sm:mb-6 lg:mb-8 bg-white rounded-xl shadow-sm p-4 sm:p-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

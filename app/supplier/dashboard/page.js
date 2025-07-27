@@ -61,6 +61,32 @@ export default function SupplierDashboardPage() {
         },
     })
 
+    const fetchDashboardData = async () => {
+        try {
+            setIsRefreshing(true)
+            const response = await fetch("/api/supplier/dashboard-stats")
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to fetch dashboard data")
+            }
+
+            // Merge fetched data with default state to prevent undefined properties
+            setDashboardData(prevData => ({
+                ...prevData,
+                ...data,
+                stats: { ...prevData.stats, ...data.stats },
+                insights: { ...prevData.insights, ...data.insights },
+            }))
+            setError("")
+        } catch (error) {
+            console.error("Failed to fetch dashboard stats:", error)
+            setError("Failed to load dashboard data")
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
+
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -83,32 +109,6 @@ export default function SupplierDashboardPage() {
 
         checkAuth()
     }, [router])
-
-    const fetchDashboardData = async () => {
-        try {
-            setIsRefreshing(true)
-            const response = await fetch("/api/supplier/dashboard-stats") // This API endpoint needs to be created
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to fetch dashboard data")
-            }
-
-            // Merge fetched data with default state to prevent undefined properties
-            setDashboardData(prevData => ({
-                ...prevData,
-                ...data,
-                stats: { ...prevData.stats, ...data.stats },
-                insights: { ...prevData.insights, ...data.insights },
-            }))
-            setError("")
-        } catch (error) {
-            console.error("Failed to fetch dashboard stats:", error)
-            setError("Failed to load dashboard data")
-        } finally {
-            setIsRefreshing(false)
-        }
-    }
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-US", {
@@ -216,6 +216,14 @@ export default function SupplierDashboardPage() {
                             </div>
                         </div>
                     </div>
+                    {/* Empty state for dashboard */}
+                    {dashboardData.stats.totalOrders === 0 && dashboardData.stats.totalRawMaterials === 0 && (
+                        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                            <Package size={48} className="mb-4 text-gray-300" />
+                            <p className="text-lg font-semibold">No data to display</p>
+                            <p className="text-sm mt-2">Add raw materials and receive orders to see your business stats here.</p>
+                        </div>
+                    )}
 
                     {/* Key Insights */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
@@ -635,9 +643,9 @@ export default function SupplierDashboardPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs sm:text-sm font-medium text-gray-900 flex items-center">
                                                             <User size={12} className="mr-1 text-gray-500 flex-shrink-0" />
-                                                            <span className="truncate">{order.vendor?.name || "Unknown Vendor"}</span>
+                                                            <span className="truncate">{order.user?.name || "Unknown Vendor"}</span>
                                                         </p>
-                                                        <p className="text-xs text-gray-500 truncate mt-1">{order.vendor?.email}</p>
+                                                        <p className="text-xs text-gray-500 truncate mt-1">{order.user?.email}</p>
                                                         <p className="text-xs sm:text-sm font-semibold text-gray-900 mt-2 bg-gray-50 px-2 py-1 rounded inline-block">
                                                             ₹{order.totalAmount.toLocaleString()}
                                                         </p>

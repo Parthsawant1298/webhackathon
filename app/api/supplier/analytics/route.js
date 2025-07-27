@@ -1,4 +1,4 @@
-// app/api/supplier/analytics/route.js - FIXED VERSION
+// app/api/supplier/analytics/route.js - COMPLETE FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -10,11 +10,14 @@ import mongoose from 'mongoose';
 
 export async function GET(request) {
   try {
+    console.log('🚀 Analytics API called');
+    
     // Check supplier authentication
     const cookieStore = await cookies();
     const supplierSessionCookie = cookieStore.get('supplier-session')?.value;
     
     if (!supplierSessionCookie) {
+      console.log('❌ No supplier session found');
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -26,8 +29,11 @@ export async function GET(request) {
     // Verify supplier exists
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
+      console.log('❌ Supplier not found');
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
+
+    console.log('✅ Supplier found:', supplier.supplierName);
 
     // Get query parameters for time range
     const url = new URL(request.url);
@@ -61,12 +67,20 @@ export async function GET(request) {
         startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
     }
 
+    console.log('📅 Time range:', timeRange, 'Start date:', startDate);
+
     // Get all raw material IDs for the current supplier
-    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId, isActive: true }).select('_id').lean();
+    const supplierRawMaterials = await RawMaterial.find({ 
+      createdBy: supplierId, 
+      isActive: true 
+    }).select('_id name category').lean();
+    
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
 
+    console.log('📦 Found', supplierRawMaterialIds.length, 'raw materials for supplier');
+
     if (supplierRawMaterialIds.length === 0) {
-      // Return default empty analytics if no raw materials
+      console.log('📭 No raw materials found, returning empty analytics');
       return NextResponse.json({
         success: true,
         timeRange,
@@ -96,6 +110,8 @@ export async function GET(request) {
       paymentStatus: 'completed',
       createdAt: { $gte: startDate }
     };
+
+    console.log('🔍 Base order match:', baseOrderMatch);
 
     // Parallel execution of all analytics queries
     const [
@@ -417,6 +433,12 @@ export async function GET(request) {
       ])
     ]);
 
+    console.log('📊 Analytics query results:');
+    console.log('- Daily revenue points:', dailyRevenue.length);
+    console.log('- Monthly revenue points:', monthlyRevenue.length);
+    console.log('- Category revenue:', categoryRevenue.length);
+    console.log('- Product revenue:', productRevenue.length);
+
     // Calculate growth percentages
     const currentPeriod = growthMetrics.find(g => g._id.period === 'current') || { revenue: 0, orders: 0, uniqueVendors: 0 };
     const previousPeriod = growthMetrics.find(g => g._id.period === 'previous') || { revenue: 0, orders: 0, uniqueVendors: 0 };
@@ -440,6 +462,8 @@ export async function GET(request) {
       allTime: revenueSummary[0]?.allTime[0] || { revenue: 0, orders: 0 }
     };
 
+    console.log('✅ Analytics data processed successfully');
+
     return NextResponse.json({
       success: true,
       timeRange,
@@ -458,7 +482,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Supplier analytics error:', error);
+    console.error('❌ Supplier analytics error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch supplier analytics', details: error.message },
       { status: 500 }

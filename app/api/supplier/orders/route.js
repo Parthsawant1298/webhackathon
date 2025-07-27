@@ -1,4 +1,4 @@
-// app/api/supplier/orders/route.js - FIXED VERSION
+// app/api/supplier/orders/route.js - COMPLETE FIXED VERSION
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import connectDB from '@/lib/mongodb';
@@ -10,10 +10,13 @@ import mongoose from 'mongoose';
 
 export async function GET(request) {
   try {
+    console.log('🚀 Supplier orders API called');
+    
     const cookieStore = await cookies();
     const supplierSessionCookie = cookieStore.get('supplier-session')?.value;
     
     if (!supplierSessionCookie) {
+      console.log('❌ No supplier session found');
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -24,14 +27,23 @@ export async function GET(request) {
     
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
+      console.log('❌ Supplier not found');
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
 
+    console.log('✅ Supplier found:', supplier.supplierName);
+
     // Get all raw material IDs for this supplier
-    const supplierRawMaterials = await RawMaterial.find({ createdBy: supplierId }).select('_id');
+    const supplierRawMaterials = await RawMaterial.find({ 
+      createdBy: supplierId,
+      isActive: true 
+    }).select('_id name category mainImage');
     const supplierRawMaterialIds = supplierRawMaterials.map(rm => rm._id);
 
+    console.log('📦 Found', supplierRawMaterialIds.length, 'raw materials for supplier');
+
     if (supplierRawMaterialIds.length === 0) {
+      console.log('📭 No raw materials found, returning empty response');
       return NextResponse.json({
         success: true,
         orders: [],
@@ -62,6 +74,8 @@ export async function GET(request) {
     const endDate = url.searchParams.get('endDate');
     const sortBy = url.searchParams.get('sortBy') || 'createdAt';
     const sortOrder = url.searchParams.get('sortOrder') || 'desc';
+
+    console.log('🔍 Query params:', { page, limit, status, paymentStatus, search });
 
     // Build filter for orders containing supplier's raw materials
     const baseFilter = {
@@ -120,23 +134,28 @@ export async function GET(request) {
       }
     });
 
-    // Process items to include raw material details
+    // Process items to include raw material details and filter only supplier's items
     pipeline.push({
       $addFields: {
         items: {
           $map: {
-            input: '$items',
+            input: {
+              $filter: {
+                input: '$items',
+                cond: { $in: ['$$this.rawMaterial', supplierRawMaterialIds] }
+              }
+            },
             as: 'item',
             in: {
               $mergeObjects: [
-                '$item',
+                '$$item',
                 {
                   rawMaterial: {
                     $arrayElemAt: [
                       {
                         $filter: {
                           input: '$rawMaterialDetails',
-                          cond: { $eq: ['$this._id', '$item.rawMaterial'] }
+                          cond: { $eq: ['$$this._id', '$$item.rawMaterial'] }
                         }
                       },
                       0
@@ -144,6 +163,21 @@ export async function GET(request) {
                   }
                 }
               ]
+            }
+          }
+        }
+      }
+    });
+
+    // Calculate supplier-specific total amount
+    pipeline.push({
+      $addFields: {
+        supplierTotalAmount: {
+          $sum: {
+            $map: {
+              input: '$items',
+              as: 'item',
+              in: { $multiply: ['$$item.price', '$$item.quantity'] }
             }
           }
         }
@@ -160,6 +194,8 @@ export async function GET(request) {
     // Sort
     const sortDirection = sortOrder === 'desc' ? -1 : 1;
     pipeline.push({ $sort: { [sortBy]: sortDirection } });
+
+    console.log('🔍 Executing aggregation pipeline...');
 
     // Execute pipeline with pagination
     const [ordersResult] = await Order.aggregate([
@@ -180,6 +216,8 @@ export async function GET(request) {
     const orders = ordersResult.orders || [];
     const totalCount = ordersResult.totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
+
+    console.log('📋 Found', orders.length, 'orders out of', totalCount, 'total');
 
     // Calculate stats for supplier's portion of orders
     const statsResult = await Order.aggregate([
@@ -234,6 +272,8 @@ export async function GET(request) {
       paymentFailedOrders: 0
     };
 
+    console.log('📊 Stats calculated:', stats);
+
     return NextResponse.json({
       success: true,
       orders,
@@ -248,7 +288,7 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Supplier orders fetch error:', error);
+    console.error('❌ Supplier orders fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch orders', details: error.message },
       { status: 500 }
@@ -258,10 +298,13 @@ export async function GET(request) {
 
 export async function PUT(request) {
   try {
+    console.log('🔄 Order update request received');
+    
     const cookieStore = await cookies();
     const supplierSessionCookie = cookieStore.get('supplier-session')?.value;
     
     if (!supplierSessionCookie) {
+      console.log('❌ No supplier session found');
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
@@ -272,10 +315,13 @@ export async function PUT(request) {
     
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
+      console.log('❌ Supplier not found');
       return NextResponse.json({ error: 'Supplier not found' }, { status: 403 });
     }
 
     const { orderId, status, paymentStatus } = await request.json();
+
+    console.log('📝 Update request:', { orderId, status, paymentStatus });
 
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
@@ -302,6 +348,7 @@ export async function PUT(request) {
     });
 
     if (!order) {
+      console.log('❌ Order not found or unauthorized');
       return NextResponse.json({ error: 'Order not found or unauthorized' }, { status: 404 });
     }
 
@@ -310,11 +357,15 @@ export async function PUT(request) {
     if (paymentStatus) updateData.paymentStatus = paymentStatus;
     updateData.updatedAt = new Date();
 
+    console.log('💾 Updating order with:', updateData);
+
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
       updateData,
       { new: true }
     ).populate('user', 'vendorName email');
+
+    console.log('✅ Order updated successfully');
 
     return NextResponse.json({
       success: true,
@@ -323,7 +374,7 @@ export async function PUT(request) {
     });
 
   } catch (error) {
-    console.error('Order update error:', error);
+    console.error('❌ Order update error:', error);
     return NextResponse.json(
       { error: 'Failed to update order', details: error.message },
       { status: 500 }

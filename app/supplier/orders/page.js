@@ -1,34 +1,33 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
+import SupplierHeader from "@/components/SupplierHeader"
 import {
-    Package,
-    User,
-    MapPin,
+    AlertTriangle,
+    ArrowUpDown,
     Calendar,
-    Search,
-    Download,
-    Eye,
-    Edit,
+    CheckCircle,
     ChevronLeft,
     ChevronRight,
-    CreditCard,
-    Phone,
-    Mail,
-    CheckCircle,
-    Clock,
-    XCircle,
-    AlertTriangle,
-    DollarSign,
-    FileText,
-    ArrowUpDown,
-    RefreshCw,
     Clipboard,
+    CreditCard,
+    DollarSign,
+    Download,
+    Edit,
+    Eye,
+    FileText,
+    Mail,
+    MapPin,
+    Package,
+    Phone,
+    RefreshCw,
+    Search,
     ShoppingBag,
+    User,
+    XCircle
 } from "lucide-react"
-import SupplierHeader from "@/components/SupplierHeader"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 export default function SupplierOrdersPage() {
     const router = useRouter()
@@ -771,26 +770,20 @@ export default function SupplierOrdersPage() {
                     </div>
 
                     {/* Orders List */}
-                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                        {/* Show empty state or orders */}
-                        {orders.length === 0 && !isLoading ? (
-                            <div className="text-center py-8 sm:py-12">
-                                <Package size={32} className="mx-auto text-gray-300 mb-4 sm:hidden" />
-                                <Package size={48} className="mx-auto text-gray-300 mb-4 hidden sm:block" />
-                                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-                                <p className="text-gray-500 text-sm sm:text-base">
-                                    {Object.values(filters).some(filter => filter !== 'all' && filter !== '' && filter !== 'createdAt' && filter !== 'desc')
-                                        ? "Try adjusting your filters to see more orders."
-                                        : "No orders have been placed yet."}
-                                </p>
-                                {Object.values(filters).some(filter => filter !== 'all' && filter !== '' && filter !== 'createdAt' && filter !== 'desc') && (
-                                    <button
-                                        onClick={clearFilters}
-                                        className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                                    >
-                                        Clear Filters
-                                    </button>
-                                )}
+                    <div className="bg-white shadow rounded-lg p-4 mt-4">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <span className="text-gray-500">Loading orders...</span>
+                            </div>
+                        ) : error ? (
+                            <div className="flex items-center justify-center py-12 text-red-500">
+                                {error}
+                            </div>
+                        ) : orders.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                                <ShoppingBag size={48} className="mb-4 text-gray-300" />
+                                <p className="text-lg font-semibold">No orders found</p>
+                                <p className="text-sm mt-2">You have not received any orders yet. Orders placed by vendors will appear here.</p>
                             </div>
                         ) : (
                             <>
